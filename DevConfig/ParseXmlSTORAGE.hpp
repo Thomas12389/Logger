@@ -7,6 +7,5 @@
 #include "DevConfig/PhyChannel.hpp"
 
 int parse_xml_storage(rapidxml::xml_node<> *pStorageNode, File_Save& File_Info);
-int map_sigsave2sigin(rapidxml::xml_node<> *pMsgSaveNodes, int nNumMessages);
 
 #endif
