@@ -7,6 +7,5 @@
 #include "DevConfig/PhyChannel.hpp"
 
 int parse_xml_mqtt(rapidxml::xml_node<> *pMQTTNode, MQTT_Server& MQTT_Ser);
-int map_sigout2sigin(rapidxml::xml_node<> *pMsgOutNodes, int nNumMessages);
 
 #endif
