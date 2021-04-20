@@ -1,0 +1,107 @@
+#include "cJSON.h"
+
+#include <mosquitto.h>
+
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include<time.h>
+
+int main()
+{
+    cJSON *cjson_root = NULL;
+    cJSON *cjson_data = NULL;
+    cJSON *cjson_item1 = NULL;
+    cJSON *cjson_time = NULL;
+
+    cjson_root = cJSON_CreateObject();
+    cjson_data = cJSON_CreateArray();
+    cjson_item1 = cJSON_CreateObject();
+    
+    // cJSON_AddNumberToObject(cjson_root, "Time",1234567898765432145);
+    cJSON_AddStringToObject(cjson_root, "Time", "1234567898765432145");
+
+    cJSON_AddStringToObject(cjson_item1, "name", "speed");
+    cJSON_AddNumberToObject(cjson_item1, "value", 3.22);
+    cJSON_AddStringToObject(cjson_item1, "unit", "m/s");
+    cJSON_AddItemToArray(cjson_data, cjson_item1);
+
+    cjson_item1 = NULL;
+    cjson_item1 = cJSON_CreateObject();
+    cJSON_AddStringToObject(cjson_item1, "name", "xxxxx");
+    cJSON_AddNumberToObject(cjson_item1, "value", 100.56);
+    cJSON_AddStringToObject(cjson_item1, "unit", "m");
+
+    cJSON_AddItemToArray(cjson_data, cjson_item1);
+    cJSON_AddItemToObject(cjson_root, "data", cjson_data);
+    
+    // char *result = cJSON_Print(cjson_root);
+	char *result = cJSON_PrintUnformatted(cjson_root);
+    // cJSON_Minify(result);
+	printf("%s\n", result);
+
+    struct mosquitto *mosq = NULL;
+    mosquitto_lib_init(); 
+	//Create a new mosquitto client instance
+	mosq = mosquitto_new("CLIENT_ID", true, NULL); 
+	if(!mosq)
+	{ 
+		printf("Create client failed!\n"); 
+		mosquitto_lib_cleanup(); 
+		return -1; 
+	}
+    unsigned char count = 1;
+	sleep(2);
+	//Connect server
+	int ret = mosquitto_connect_async(mosq, "47.99.123.220", 1883, 60);
+	if(MOSQ_ERR_SUCCESS != ret)
+	{
+		printf("%s\n",mosquitto_strerror(ret));
+		for(count = 1;count <= 10;count++)
+		{
+			printf("Try (%d)th reconnect after 2 seconds...\n",count);
+			sleep(2000);
+			if(MOSQ_ERR_SUCCESS == mosquitto_reconnect_async(mosq))	//reconnect server
+			{
+				break;
+			}
+		}
+		
+		if(count > 10)
+		{
+			mosquitto_destroy(mosq);	//free memory associated with a mosquitto client instance
+			mosquitto_lib_cleanup();
+			printf("Unable to connect the server! Please check the server network environment.\n");
+			return -1;
+		}
+	}
+	printf("Connect the server success!\n");
+
+    int loop = mosquitto_loop_start(mosq);
+	if(loop != MOSQ_ERR_SUCCESS)
+	{ 
+		printf("%s\n",mosquitto_strerror(loop));
+		return -1; 
+	}   
+
+    ret = mosquitto_publish(mosq, NULL, "WINDHILL/ac54328fe6a12001/signals", strlen(result), result, 2, 0);
+    // ret = mosquitto_publish(mosq, NULL, "topic", 0, result, 2, 1);  // 清空相同主题的 retain message
+	if(MOSQ_ERR_SUCCESS != ret)
+	{
+		printf("%s\n",mosquitto_strerror(ret));
+	}
+    sleep(2);
+    printf("%s\n", result);
+
+    ret = mosquitto_disconnect(mosq);
+	if(MOSQ_ERR_SUCCESS != ret)
+	{
+		printf("%s\n",mosquitto_strerror(ret));
+		return -1;
+	}
+	printf("------------------- disconnect ----------------------\n");	
+	mosquitto_destroy(mosq);
+	mosquitto_lib_cleanup();
+
+    return 0;
+}

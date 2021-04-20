@@ -1,0 +1,65 @@
+/*************************************************************************
+	> File Name: test_convert.cpp
+	> Author: 
+	> Mail: 
+	> Created Time: Wed 25 Nov 2020 11:09:34 AM CST
+ ************************************************************************/
+
+#include <iostream>
+#include <string.h>
+#include <unistd.h>
+
+#include "ConvertData/ConvertData.h"
+#include "DevConfig/ParseXml.hpp"
+#include "DevConfig/ParseXmlOut.hpp"
+#include "tbox/MOSQUITTO.h"
+
+int main() {
+	uint8_t data[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+	parse_xml("./demo_in.xml");
+	parse_xml_out("./demo_out.xml");
+	CvtMsgDataToSigData(data);
+	std::cout << "---------- convater end! ----------" << std::endl;
+
+	Mosquitto_Init();
+	
+	if(0 != Mosquitto_Connect()) std::cout << "connect failed!" << std::endl;
+	
+	Mosquitto_Loop_Start();
+	// sleep(2);
+	// MAP_ChannelIDMsgID::iterator ItrChannel = g_MapChannelIDMsgID.begin();
+	for (auto ItrChannel = g_MapChannelIDMsgID.begin(); ItrChannel != g_MapChannelIDMsgID.end();ItrChannel++) {
+		std::cout << "nChannelID = " << ItrChannel->first << std::endl;
+// std::cout << "sizeof ItrChannel->second = " << ItrChannel->second.size() << std::endl;
+		for (auto Itr = (ItrChannel->second).begin(); Itr != (ItrChannel->second).end(); Itr++) {
+			std::cout << "\tnMsagID = " << std::hex << Itr->first << std::endl;
+
+			for (auto Itr2 = (Itr->second).begin(); Itr2 != (Itr->second).end(); Itr2++) {
+				int tIdx = g_MapChannelIDChannelIndex[ItrChannel->first];
+				auto tMsgID = g_MapChannelIndexMsgID.find(tIdx)->second;
+				auto tRcvMsg = tMsgID.find(Itr->first)->second;
+				// std::cout << "\t\ttRcvMsg->nNumSigs = " << tRcvMsg->nNumSigs << std::endl;
+				for (int i = 0; i < tRcvMsg->nNumSigs; i++) {
+					if (tRcvMsg->pPackSig[i].bIsSend && tRcvMsg->pPackSig[i].StrSigName == Itr2->first) {
+						std::cout << "\t\t OutName = " << tRcvMsg->pPackSig[i].StrOutName << std::endl;
+						std::cout << "\t\t Signame = " << Itr2->first << "\tvalue = " << Itr2->second << std::endl;
+						char strdd[21];
+						memset(strdd,0,sizeof(strdd)); memset(strdd,0,sizeof(strdd));
+						sprintf(strdd,"%lf",Itr2->second);
+						// printf("strff=%s\n",strdd);  // 输出strff=1024.58
+						int ret = Mosquitto_Pub((g_SeqNum + "/" + tRcvMsg->pPackSig[i].StrOutName).c_str(), strlen(strdd), (void *)strdd);
+						if (ret == -1) {
+							std::cout << "error!" << std::endl;
+						}
+					}
+				}
+				
+			}
+		}
+		
+	}
+	sleep(2);
+	// Mosquitto_Disconnect();
+	
+	return 0;
+}

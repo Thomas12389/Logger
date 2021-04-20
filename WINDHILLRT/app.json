@@ -1,0 +1,26 @@
+[
+    {
+        "id": 144,
+        "name": "TBox Voltage",
+        "unit": "V",
+        "displayBounds": {
+            "min": 0,
+            "max": 20
+        },
+        "active": true,
+        "description": "TBox internal voltage",
+        "numDigits": 2,
+        "noValueValue": "NaN",
+        "source": 0,
+        "sourceIndex": 0,
+        "interface": "CAN1",
+        "dataDirection": 1,
+        "dataType": 9,
+        "signalTask": 0,
+        "connection": "",
+        "connectionMqtt": null,
+        "vtab": null,
+        "limits": null,
+        "ranges": null
+    }
+]
