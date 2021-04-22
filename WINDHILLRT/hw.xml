@@ -194,11 +194,27 @@
 	</NumModel>
 	<Messages>
 		<Message>
-			<MessageName>C_56702492_1_C1_Voltage</MessageName>
+			<MessageName>xx1</MessageName>
 			<Reference>
 				<Channel>CAN1</Channel>
 				<Source>COM</Source>
 				<Name>C_56702492_1</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>xx2</MessageName>
+			<Reference>
+				<Channel>CAN1</Channel>
+				<Source>COM</Source>
+				<Name>C_56702492_2</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>xx3</MessageName>
+			<Reference>
+				<Channel>CAN1</Channel>
+				<Source>COM</Source>
+				<Name>C_56702492_3</Name>
 			</Reference>
 		</Message>
 	</Messages>

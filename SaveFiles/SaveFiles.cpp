@@ -148,7 +148,7 @@ void *save_msg_thread(void *arg) {
                 continue;
             }
             // 再写入将会超过 BUFFER 大小， 发生越界
-            if (BUFFER_LENGTH + sizeof(ItrMsg->second.fPhyVal) > MSG_BUFFER_SIZE) {
+            if (BUFFER_LENGTH + sizeof(ItrMsg->second.dPhyVal) > MSG_BUFFER_SIZE) {
                 if(0 != save_files(nFileNO++, BUFFER_LENGTH, 0)) {
                     XLOG_DEBUG("Partial data loss.");
                 }
@@ -156,8 +156,8 @@ void *save_msg_thread(void *arg) {
                 memset(MSG_BUFFER, 0, sizeof(MSG_BUFFER));
             }
 
-            memcpy(MSG_BUFFER + BUFFER_LENGTH, &(ItrMsg->second.fPhyVal), sizeof(ItrMsg->second.fPhyVal));
-            BUFFER_LENGTH += sizeof(ItrMsg->second.fPhyVal);
+            memcpy(MSG_BUFFER + BUFFER_LENGTH, &(ItrMsg->second.dPhyVal), sizeof(ItrMsg->second.dPhyVal));
+            BUFFER_LENGTH += sizeof(ItrMsg->second.dPhyVal);
         }
         
     }

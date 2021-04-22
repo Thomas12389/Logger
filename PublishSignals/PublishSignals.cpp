@@ -17,11 +17,10 @@
 #include "tbox/Common.h"
 #include "tbox/GPS.h"
 #include "tbox/DevInfo.h"
+#include "datatype.h"
 
 #include "CJson/cJSON.h"
 #include "Logger/Logger.h"
-
-#define FIXED_HEAD  0x0000000100000000
 
 extern std::vector<std::string> g_out_MsgName;
 extern stu_OutMessage g_stu_OutMessage;
@@ -46,7 +45,7 @@ typedef struct{
 } PUBLISH_QUEUE;
 static PUBLISH_QUEUE publish_queue;
 
-static char temp[8 * ];
+static const uint64_t FIXED_HEAD = 0x0000000100000000;
 
 static const int PUBLISH_QUEUE_MAX_SIZE = 1000;
 
@@ -72,10 +71,11 @@ void *push_to_publish_queue(void *arg) {
         // TODO：包含 map 的结构体，如此操作是否合适？有更高效的办法？
         stu_Message publish_message = g_stu_OutMessage.msg_struct;
 
+        // 按顺序添加信号值
         std::vector<std::string>::iterator out_MsgNameItr = g_out_MsgName.begin();
         for (; out_MsgNameItr != g_out_MsgName.end(); out_MsgNameItr++) {
             MAP_Name_Message::iterator ItrMsg = g_stu_OutMessage.msg_struct.msg_map.find(*out_MsgNameItr);
-            Out_Message temp_message{NAN, "", ""};
+            Out_Message temp_message{SIGNAL_NAN, "", ""};
             // 没找到(说明该信号在通道配置中一定不存在)，则写入最大值，单位留空
             if (ItrMsg == g_stu_OutMessage.msg_struct.msg_map.end()) {
                 publish_message.msg_map[*out_MsgNameItr] = temp_message;
@@ -114,25 +114,25 @@ void *push_to_publish_queue(void *arg) {
         } else {
             Out_Message temp_gps_msg;
             memset(&temp_gps_msg, 0, sizeof(temp_gps_msg));
-            temp_gps_msg.dPhyVal = NAN;
+            temp_gps_msg.dPhyVal = SIGNAL_NAN;
             temp_gps_msg.strPhyUnit = "°";
             temp_gps_msg.strPhyFormat = "%.6f";
             publish_message.msg_map["Latitude"] = temp_gps_msg;
 
             memset(&temp_gps_msg, 0, sizeof(temp_gps_msg));
-            temp_gps_msg.dPhyVal = NAN;
+            temp_gps_msg.dPhyVal = SIGNAL_NAN;
             temp_gps_msg.strPhyUnit = "°";
             temp_gps_msg.strPhyFormat = "%.6f";
             publish_message.msg_map["Longitude"] = temp_gps_msg;
 
             memset(&temp_gps_msg, 0, sizeof(temp_gps_msg));
-            temp_gps_msg.dPhyVal = NAN;
+            temp_gps_msg.dPhyVal = SIGNAL_NAN;
             temp_gps_msg.strPhyUnit = "km/h";
             temp_gps_msg.strPhyFormat = "%.3f";
             publish_message.msg_map["Speed"] = temp_gps_msg;
 
             memset(&temp_gps_msg, 0, sizeof(temp_gps_msg));
-            temp_gps_msg.dPhyVal = NAN;
+            temp_gps_msg.dPhyVal = SIGNAL_NAN;
             temp_gps_msg.strPhyUnit = "m";
             temp_gps_msg.strPhyFormat = "%.3f";
             publish_message.msg_map["Altitude"] = temp_gps_msg;
@@ -184,6 +184,11 @@ void *push_to_publish_queue(void *arg) {
 void *publish_signals_thread(void *arg) {
     
     int is_iNET_active = 0;
+    int singals_count = g_out_MsgName.size();
+    char temp_signals[8 * (2 + singals_count)];
+
+    char signal_topic[100] = {0};
+    GetMQTTTopic(signal_topic, MQTT_TOPIC::signals);
     
     while (1) {
         // 500 ms 检测一次
@@ -213,33 +218,26 @@ void *publish_signals_thread(void *arg) {
         while (!publish_queue.queue_msg.empty() ) {
             // TODO：结构体操作？
             stu_Message temp_message = publish_queue.queue_msg.front();
-
-            
-
+            memset(temp_signals, 0, sizeof(temp_signals));
+            // 固定头
+            memcpy(temp_signals, &FIXED_HEAD, sizeof(FIXED_HEAD));
             // 时间戳
-            memset(strTimeStamp, 0, sizeof(strTimeStamp));
-            sprintf(strTimeStamp, "%llu", temp_message.msg_time);
-            cJSON_AddStringToObject(json_root, "Time", strTimeStamp);   // add timestamp
+            uint64_t time_stamp = temp_message.msg_time;
+            memcpy(temp_signals + sizeof(FIXED_HEAD), &time_stamp, sizeof(time_stamp));
 
             MAP_Name_Message::iterator ItrMsg = temp_message.msg_map.begin();
-            while (ItrMsg != temp_message.msg_map.end()) {
-                json_item = cJSON_CreateObject();
-                cJSON_AddStringToObject(json_item, "name", (ItrMsg->first).c_str());
-                // TODO
-                cJSON_AddNumberToObject(json_item, "value", (ItrMsg->second).fPhyVal);
-                cJSON_AddStringToObject(json_item, "unit", (ItrMsg->second).strPhyUnit.c_str());
-                cJSON_AddItemToArray(json_data, json_item);
+            int signal_index = 0;
+            while (ItrMsg != temp_message.msg_map.end()
+                    && (signal_index < singals_count)) {
+
+                double dval = (ItrMsg->second).dPhyVal;
+                memcpy(temp_signals + sizeof(FIXED_HEAD) + sizeof(time_stamp)
+                        + sizeof(dval) * signal_index++, &dval, sizeof(dval));
+
                 ItrMsg++;
             }
 
-            cJSON_AddItemToObject(json_root, "data", json_data);
-            char *payload = cJSON_PrintUnformatted(json_root);
-
-            std::string topic = "/" + g_Hardware_Info.SeqNum + "/signals";
-            int retval = Mosquitto_Pub(topic.c_str(), strlen(payload), (void *)payload);
-
-            cJSON_free(payload);        // manual free, otherwise will lead memory leak(Due to: cJSON_Print series of functions)
-            cJSON_Delete(json_root);    // 
+            int retval = Mosquitto_Pub(signal_topic, sizeof(temp_signals), temp_signals);
             
             if (0 == retval) {
                 // 发送成功则出队

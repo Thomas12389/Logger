@@ -1,15 +1,17 @@
 
 #include <cstring>
-#include <cfloat>
 
 #include "DevConfig/ParseXmlSTORAGE.hpp"
 #include "DevConfig/ParseXmlCAN.hpp"
 #include "ConvertData/ConvertData.h"
+#include "datatype.h"
 
 extern Channel_MAP g_Channel_MAP;
 extern stu_SaveMessage g_stu_SaveMessage;
 // 需要保存到文件的信号名称
 std::vector<std::string> g_save_MsgName;
+
+int map_sigsave2sigin(rapidxml::xml_node<> *pMsgSaveNodes, int nNumMessages);
 
 int parse_xml_storage(rapidxml::xml_node<> *pStorageNode, File_Save& File_Info){
 
@@ -75,7 +77,7 @@ int map_sigsave2sigin(rapidxml::xml_node<> *pMsgSaveNodes, int nNumMessages) {
                     // 按顺序保存需要存储的信号名称
                     g_save_MsgName.emplace_back(pSig[Idx].strSaveName);
                     // 初始化信号值
-                    g_stu_SaveMessage.msg_struct.msg_map[pSig[Idx].strSaveName] = {FLT_MAX, pSig[Idx].strSigUnit, pSig[Idx].strSigFormat};
+                    g_stu_SaveMessage.msg_struct.msg_map[pSig[Idx].strSaveName] = {SIGNAL_NAN, pSig[Idx].strSigUnit, pSig[Idx].strSigFormat};
                     break;
                 }
             }
@@ -102,7 +104,7 @@ int map_sigsave2sigin(rapidxml::xml_node<> *pMsgSaveNodes, int nNumMessages) {
                             // 按顺序保存需要存储的信号名称
                             g_save_MsgName.emplace_back(pEle[nIdxEle].strSaveName);
                             // 初始化信号值
-                            g_stu_SaveMessage.msg_struct.msg_map[pEle[nIdxEle].strSaveName] = {FLT_MAX, pEle[nIdxEle].strElementUnit, pEle[nIdxEle].strElementFormat};
+                            g_stu_SaveMessage.msg_struct.msg_map[pEle[nIdxEle].strSaveName] = {SIGNAL_NAN, pEle[nIdxEle].strElementUnit, pEle[nIdxEle].strElementFormat};
                             break;
                         }
                     }

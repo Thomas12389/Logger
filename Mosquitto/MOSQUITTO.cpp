@@ -253,7 +253,7 @@ int Mosquitto_Pub(const char *topic, int payloadlen,const void *payload) {
 												  2-只有一次
 							bool retain); 		//消息是否驻留(只有一条)
 	*/
-	int ret = mosquitto_publish(mosq, NULL, topic, payloadlen, payload, SIGNALS_QOS, false);
+	int ret = mosquitto_publish(mosq, NULL, topic, payloadlen, payload, SIGNALS_QOS, true);
 	if(MOSQ_ERR_SUCCESS != ret) {
 		XLOG_DEBUG("Mosquitto_Pub:{}", mosquitto_strerror(ret));
 		return -1;

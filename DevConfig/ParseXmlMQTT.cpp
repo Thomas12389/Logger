@@ -1,16 +1,17 @@
 
 #include <cstring>
 
-#include <cmath>
-
 #include "DevConfig/ParseXmlMQTT.hpp"
 #include "DevConfig/ParseXmlCAN.hpp"
 #include "ConvertData/ConvertData.h"
+#include "datatype.h"
 
 extern Channel_MAP g_Channel_MAP;
 extern stu_OutMessage g_stu_OutMessage;
 // 需要发布的信号名称
 std::vector<std::string> g_out_MsgName;
+
+int map_sigout2sigin(rapidxml::xml_node<> *pMsgOutNodes, int nNumMessages);
 
 int parse_xml_mqtt(rapidxml::xml_node<> *pMQTTNode, MQTT_Server& MQTT_Ser){
 
@@ -89,7 +90,7 @@ int map_sigout2sigin(rapidxml::xml_node<> *pMsgOutNodes, int nNumMessages) {
                     // 按顺序保存需要发布的信号名称
                     g_out_MsgName.emplace_back(pSig[Idx].strOutName);
                     // 初始化信号值
-                    g_stu_OutMessage.msg_struct.msg_map[pSig[Idx].strOutName] = {NAN, pSig[Idx].strSigUnit, pSig[Idx].strSigFormat};
+                    g_stu_OutMessage.msg_struct.msg_map[pSig[Idx].strOutName] = {SIGNAL_NAN, pSig[Idx].strSigUnit, pSig[Idx].strSigFormat};
                     break;
                 }
             }
@@ -116,7 +117,7 @@ int map_sigout2sigin(rapidxml::xml_node<> *pMsgOutNodes, int nNumMessages) {
                             // 按顺序保存需要发布的信号名称
                             g_out_MsgName.emplace_back(pEle[nIdxEle].strOutName);
                             // 初始化信号值
-                            g_stu_OutMessage.msg_struct.msg_map[pEle[nIdxEle].strOutName] = {NAN, pEle[nIdxEle].strElementUnit, pEle[nIdxEle].strElementFormat};
+                            g_stu_OutMessage.msg_struct.msg_map[pEle[nIdxEle].strOutName] = {SIGNAL_NAN, pEle[nIdxEle].strElementUnit, pEle[nIdxEle].strElementFormat};
                             break;
                         }
                     }
