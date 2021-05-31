@@ -1,6 +1,5 @@
 #include <thread>
-#include <semaphore.h>
-#include <functional>
+// #include <functional>
 
 #include "tbox/Common.h"
 
@@ -27,13 +26,11 @@ CCP_TEST::CCP_TEST(const canInfo& pCANInfo, const CCP_SlaveData& pSalveData)
     , pCANInfo(pCANInfo)
 {
     bReceiveThreadRunning = true;
-    bReinitializeThreadRunning = true;
 	SetCCPSendFunc(std::bind(&CCP_TEST::CAN_Send, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 }
 
 CCP_TEST::~CCP_TEST() {
     bReceiveThreadRunning = false;
-    bReinitializeThreadRunning = false;
 }
 
 // 将所有的 DAQList ID 取出
@@ -70,13 +67,16 @@ int CCP_TEST::Init() {
 }
 
 void CCP_TEST::Receive_Thread() {
-    uint64_t start = getTimestamp(3);
-    uint64_t end = getTimestamp(3);
+    uint64_t start = getTimestamp(TIME_STAMP::NS_STAMP);
+    uint64_t end = start;
     while (CCP_Run && bReceiveThreadRunning) {
-        end = getTimestamp(3);
+        // 10 ms
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        
+        end = getTimestamp(TIME_STAMP::NS_STAMP);
         if ((end - start) >= 5000000000) {
             DAQList_Initialization();
-            start = getTimestamp(3);
+            start = getTimestamp(TIME_STAMP::NS_STAMP);
         }
         std::lock_guard<std::mutex> lck(g_stu_CAN_UOMAP_ChanName_RcvPk.can_buffer_lock);
         CAN_UOMAP_ChanName_RcvPkg::iterator ItrChan = g_stu_CAN_UOMAP_ChanName_RcvPk.can_buffer.find(pCANInfo.nChanName);
@@ -105,7 +105,6 @@ void CCP_TEST::Receive_Thread() {
         }
         
         // 缓冲区存在需要的 ID
-        start = getTimestamp(3);
         CANReceive_Buffer RcvTemp = ItrMsgID->second;
         std::array<CCP_BYTE, 8> Msg;
         for (size_t i = 0; i < Msg.size(); i++) {
@@ -122,6 +121,8 @@ void CCP_TEST::Receive_Thread() {
         // 清除已经处理过的消息，否则会影响下一条 DTO
         ItrChan->second.erase(ItrMsgID);
         CCPMsgRcv(RcvTemp.can_id, Msg);
+
+        start = getTimestamp(TIME_STAMP::NS_STAMP);
     }
 }
 

@@ -4,6 +4,7 @@
 #include "DevConfig/ParseXmlMQTT.hpp"
 #include "DevConfig/ParseXmlFTP.hpp"
 #include "DevConfig/ParseXmlSTORAGE.hpp"
+#include "DevConfig/ParseXmlInside.hpp"
 
 #include "Logger/Logger.h"
 
@@ -12,13 +13,17 @@
 #include "rapidxml/rapidxml_print.hpp"
 
 #include <unistd.h>
-#include <cstdio>
-#include <iostream>
 #include <string>
 
+// CAN 通道信号
 Channel_MAP g_Channel_MAP;
+// 设备内置信号（包括内置 GPS）
+Inside_MAP g_Inside_MAP;
+// 服务器相关信息
 Net_Info g_Net_Info;
+// 设备自身相关信息
 Hardware_Info g_Hardware_Info;
+// 文件保存相关信息
 File_Save g_File_Info;
 
 int parse_configuration(const char *pPath, const std::string strDate) {
@@ -44,6 +49,13 @@ int parse_configuration(const char *pPath, const std::string strDate) {
     // rapidxml::xml_node<> *pSubNode = pNode->first_node("Serial_Number");
     // g_Hardware_Info.SeqNum = pSubNode->value();
     g_Hardware_Info.SeqNum = "Logger_00888";
+
+    // 解析 GPS 信号
+    pNode = pRoot->first_node("GPS");
+    parse_xml_inside(pNode, pNode->name());
+    // 解析内置信号
+    pNode = pRoot->first_node("Internal");
+    parse_xml_inside(pNode, pNode->name());
 
     // 解析 CAN 相关参数
     pNode = pRoot->first_node("CAN");
@@ -82,7 +94,7 @@ int parse_configuration(const char *pPath, const std::string strDate) {
     if (NULL == pNode) {
         XLOG_ERROR("Incorrect configuration file format(STOREAGE)!");
     }
-    g_File_Info.strRemoteDirName = "/" + g_Hardware_Info.SeqNum + "/";
+    g_File_Info.strRemoteDirName = "/" + g_Hardware_Info.SeqNum;
     g_File_Info.strLocalDirName = strDate;
     if (-1 == parse_xml_storage(pNode, g_File_Info)) {
         XLOG_ERROR("Parse STORAGE configuration ERROR!");

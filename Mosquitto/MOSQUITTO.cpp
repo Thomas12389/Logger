@@ -31,6 +31,9 @@ void GetMQTTTopic(char *pTopic, MQTT_TOPIC topic_type) {
 		case MQTT_TOPIC::layout_json:
 			strncat(topic, "/layout_json", strlen("/layout_json"));
 			break;
+		case MQTT_TOPIC::limits:
+			strncat(topic, "/limits", strlen("/limits"));
+			break;
 		case MQTT_TOPIC::online:
 			strncat(topic, "/online", strlen("/online"));
 			break;
@@ -163,6 +166,10 @@ int Mosquitto_TLS_Setting() {
 }
 
 int Mosquitto_Reconnect() {
+	if (NULL == mosq) {
+		return -1;
+	}
+	
 	// 重联次数
 	unsigned char count = 1;
 	for(; count <= MOSQUITTO_RECONNECT_COUUNT; count++) {
@@ -219,6 +226,10 @@ int Mosquitto_Disconnect()  {
 }
 
 int Mosquitto_Loop_Start() {
+	if (NULL == mosq) {
+		return -1;
+	}
+
 	//开启一个 network_thread 线程，在线程里不停的调用 mosquitto_loop() 来处理网络信息 
 	int loop = mosquitto_loop_start(mosq);
 	if(loop != MOSQ_ERR_SUCCESS) { 
@@ -229,6 +240,10 @@ int Mosquitto_Loop_Start() {
 }
 
 int Mosquitto_Loop_Stop() {
+	if (NULL == mosq) {
+		return -1;
+	}
+
 	// mosquitto_loop_stop 会等待 network_thread 结束（需调用 mosquitto_disconnect）
 	// 第二个参数为 true，可强制结束 network_thread
 	int loop = mosquitto_loop_stop(mosq, true);
@@ -253,6 +268,10 @@ int Mosquitto_Pub(const char *topic, int payloadlen,const void *payload) {
 												  2-只有一次
 							bool retain); 		//消息是否驻留(只有一条)
 	*/
+	if (NULL == mosq) {
+		return -1;
+	}
+
 	int ret = mosquitto_publish(mosq, NULL, topic, payloadlen, payload, SIGNALS_QOS, true);
 	if(MOSQ_ERR_SUCCESS != ret) {
 		XLOG_DEBUG("Mosquitto_Pub:{}", mosquitto_strerror(ret));

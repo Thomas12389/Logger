@@ -7,10 +7,6 @@
   </FlagsModel>
   
   <CAN>
-    <NumModel>
-		<NumChannels>2</NumChannels>
-		<NumSignals>12</NumSignals>
-	</NumModel>
 	<Channels num = "2">
 		<Channel name = "CAN1">
 			<ChannelID>0</ChannelID>
@@ -27,48 +23,48 @@
 						<Signal>
 							<Name>C_56702492_1</Name>
 							<Unit>V</Unit>
-							<StartBit>0</StartBit>
-							<Length>16</Length>
+							<StartBit>1</StartBit>
+							<Length>9</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>SIGNED</Type>
 							<SignalFactor>0.0305180437933928</SignalFactor>
 							<SignalOffset>-1000</SignalOffset>
 						</Signal>
 						<Signal>
 							<Name>C_56702492_2</Name>
 							<Unit>A</Unit>
-							<StartBit>16</StartBit>
+							<StartBit>46</StartBit>
 							<Length>16</Length>
+							<ByteOrder>0</ByteOrder>
+							<Type>UNSIGNED</Type>
 							<SignalFactor>0.0228885328450446</SignalFactor>
 							<SignalOffset>-750</SignalOffset>
 						</Signal>
 						<Signal>
 							<Name>C_56702492_3</Name>
 							<Unit>G</Unit>
-							<StartBit>32</StartBit>
+							<StartBit>57</StartBit>
 							<Length>16</Length>
-							<SignalFactor>0.000953688868543526</SignalFactor>
-							<SignalOffset>-31.25</SignalOffset>
-						</Signal>
-						<Signal>
-							<Name>C_56702492_7</Name>
-							<Unit>A</Unit>
-							<StartBit>48</StartBit>
-							<Length>16</Length>
-							<SignalFactor>0.000305180437933928</SignalFactor>
-							<SignalOffset>-10</SignalOffset>
+							<ByteOrder>0</ByteOrder>
+							<Type>SIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>0</SignalOffset>
 						</Signal>
 					</Signals>
 				</Package>
 				<Package>
 					<ID>0x0B</ID>
 					<FDF>0</FDF>
-					<Datalength>2</Datalength>
+					<Datalength>8</Datalength>
 					<NumSignals>1</NumSignals>
 					<Signals>
 						<Signal>
 							<Name>C_56702492_8</Name>
-							<Unit>A</Unit>
+							<Unit>DD</Unit>
 							<StartBit>0</StartBit>
-							<Length>16</Length>
+							<Length>64</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>DOUBLE</Type>
 							<SignalFactor>0.00152590218966964</SignalFactor>
 							<SignalOffset>-50</SignalOffset>
 						</Signal>
@@ -93,6 +89,8 @@
 							<Unit>V</Unit>
 							<StartBit>0</StartBit>
 							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>SIGNED</Type>
 							<SignalFactor>0.00305180437933928</SignalFactor>
 							<SignalOffset>-100</SignalOffset>
 						</Signal>
@@ -109,6 +107,8 @@
 							<Unit>°C</Unit>
 							<StartBit>0</StartBit>
 							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>SIGNED</Type>
 							<SignalFactor>0.0218204013122759</SignalFactor>
 							<SignalOffset>-60</SignalOffset>
 						</Signal>
@@ -117,6 +117,8 @@
 							<Unit>°C</Unit>
 							<StartBit>16</StartBit>
 							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>SIGNED</Type>
 							<SignalFactor>0.0218204013122759</SignalFactor>
 							<SignalOffset>-60</SignalOffset>
 						</Signal>
@@ -125,6 +127,8 @@
 							<Unit>°C</Unit>
 							<StartBit>32</StartBit>
 							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>SIGNED</Type>
 							<SignalFactor>0.0218204013122759</SignalFactor>
 							<SignalOffset>-60</SignalOffset>
 						</Signal>
@@ -133,6 +137,8 @@
 							<Unit>°C</Unit>
 							<StartBit>48</StartBit>
 							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>SIGNED</Type>
 							<SignalFactor>0.0218204013122759</SignalFactor>
 							<SignalOffset>-60</SignalOffset>
 						</Signal>
@@ -149,6 +155,8 @@
 							<Unit>℃</Unit>
 							<StartBit>0</StartBit>
 							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>SIGNED</Type>
 							<SignalFactor>0.0218204013122759</SignalFactor>
 							<SignalOffset>-60</SignalOffset>
 						</Signal>
@@ -157,6 +165,8 @@
 							<Unit>℃</Unit>
 							<StartBit>16</StartBit>
 							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>SIGNED</Type>
 							<SignalFactor>0.0218204013122759</SignalFactor>
 							<SignalOffset>-60</SignalOffset>
 						</Signal>
@@ -165,6 +175,8 @@
 							<Unit>℃</Unit>
 							<StartBit>32</StartBit>
 							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>SIGNED</Type>
 							<SignalFactor>0.0218204013122759</SignalFactor>
 							<SignalOffset>-60</SignalOffset>
 						</Signal>
@@ -173,6 +185,8 @@
 							<Unit>℃</Unit>
 							<StartBit>48</StartBit>
 							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>SIGNED</Type>
 							<SignalFactor>0.0218204013122759</SignalFactor>
 							<SignalOffset>-60</SignalOffset>
 						</Signal>
@@ -182,6 +196,83 @@
 		</Channel>
 	</Channels>
   </CAN>
+
+  <GPS>
+	<active>true</active>
+	<sampleRate>1</sampleRate>
+	<numSignals>14</numSignals>
+	<signal>
+		<Name>GPS_Status</Name>
+		<Unit></Unit>
+	</signal>
+	<signal>
+		<Name>GPS_Altitude</Name>
+		<Unit>m</Unit>
+	</signal>
+	<signal>
+		<Name>GPS_numSvs</Name>
+		<Unit></Unit>
+	</signal>
+	<signal>
+		<Name>GPS_Visible_sats</Name>
+		<Unit></Unit>
+	</signal>
+	<signal>
+		<Name>GPS_Course</Name>
+		<Unit>°</Unit>
+	</signal>
+	<signal>
+		<Name>GPS_Longitude</Name>
+		<Unit>°</Unit>
+	</signal>
+	<signal>
+		<Name>GPS_Latitude</Name>
+		<Unit>°</Unit>
+	</signal>
+	<signal>
+		<Name>GPS_Speed</Name>
+		<Unit>km/h</Unit>
+	</signal>
+	<signal>
+		<Name>UTC_Year</Name>
+		<Unit></Unit>
+	</signal>
+	<signal>
+		<Name>UTC_Month</Name>
+		<Unit></Unit>
+	</signal>
+	<signal>
+		<Name>UTC_Day</Name>
+		<Unit></Unit>
+	</signal>
+	<signal>
+		<Name>UTC_Hour</Name>
+		<Unit></Unit>
+	</signal>
+	<signal>
+		<Name>UTC_Minute</Name>
+		<Unit></Unit>
+	</signal>
+	<signal>
+		<Name>UTC_Second</Name>
+		<Unit></Unit>
+	</signal>
+  </GPS>
+  
+  <Internal>
+	<active>true</active>
+	<sampleRate>1</sampleRate>
+	<numSignals>2</numSignals>
+	<signal>
+		<Name>Tbox_Temperature</Name>
+		<Unit>°C</Unit>
+	</signal>
+	<signal>
+		<Name>Tbox_Voltage</Name>
+		<Unit>V</Unit>
+	</signal>
+
+  </Internal>  
   
   <MQTT>
 	<IP>121.196.160.95</IP>
@@ -190,11 +281,11 @@
 	<Passwd>test</Passwd>
 	<NumModel>
 		<ReleaseCycle>1000</ReleaseCycle>
-		<NumMessages>31</NumMessages>
+		<NumMessages>20</NumMessages>
 	</NumModel>
 	<Messages>
 		<Message>
-			<MessageName>xx1</MessageName>
+			<MessageName>abc</MessageName>
 			<Reference>
 				<Channel>CAN1</Channel>
 				<Source>COM</Source>
@@ -217,6 +308,63 @@
 				<Name>C_56702492_3</Name>
 			</Reference>
 		</Message>
+		<Message>
+			<MessageName>xx666</MessageName>
+			<Reference>
+				<Channel>CAN1</Channel>
+				<Source>COM</Source>
+				<Name>C_56702492_8</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>Longitude</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>GPS_Longitude</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>Latitude</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>GPS_Latitude</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>Tbox_Voltage</MessageName>
+			<Reference>
+				<Source>Internal</Source>
+				<Name>Tbox_Voltage</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>Tbox_Temperature</MessageName>
+			<Reference>
+				<Source>Internal</Source>
+				<Name>Tbox_Temperature</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>GPS Status</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>GPS_Status</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>GPS satellites number</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>GPS_numSvs</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>GPS Visible sats</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>GPS_Visible_sats</Name>
+			</Reference>
+		</Message>
 	</Messages>
   </MQTT>
   
@@ -231,7 +379,7 @@
   <STORAGE>
 	<FileName>Tbox_test</FileName>
 	<NumModel>
-		<ReleaseCycle>5</ReleaseCycle>
+		<ReleaseCycle>10</ReleaseCycle>
 		<NumMessages>31</NumMessages>
 	</NumModel>
 	<Messages>
@@ -305,6 +453,55 @@
 				<Channel>CAN2</Channel>
 				<Source>CCP</Source>
 				<Name>Voltage_3</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>Longitude</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>GPS_Longitude</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>Latitude</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>GPS_Latitude</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>Tbox_Voltage</MessageName>
+			<Reference>
+				<Source>Internal</Source>
+				<Name>Tbox_Voltage</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>Tbox_Temperature</MessageName>
+			<Reference>
+				<Source>Internal</Source>
+				<Name>Tbox_Temperature</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>GPS Status</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>GPS_Status</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>GPS satellites number</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>GPS_numSvs</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>GPS Visible sats</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>GPS_Visible_sats</Name>
 			</Reference>
 		</Message>
 	</Messages>

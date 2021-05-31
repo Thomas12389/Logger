@@ -8,12 +8,13 @@
 #ifndef _CCP_H
 #define _CCP_H
 
-#include "CCPMessage.h"
 #include <functional>
 
 #include "rapidxml/rapidxml.hpp"
 #include "rapidxml/rapidxml_utils.hpp"
 #include "rapidxml/rapidxml_print.hpp"
+
+#include "CCPMessage.h"
 
 class CROMessage {
 private:

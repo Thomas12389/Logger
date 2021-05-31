@@ -1,3 +1,5 @@
+
+#include <cstring>
 #include "DevConfig/ParseXmlCAN_DBC.hpp"
 #include "DevConfig/PhyChannel.hpp"
 
@@ -33,7 +35,7 @@ int parse_xml_dbc_signal(rapidxml::xml_node<> *pPackageNode, const char *ChanNam
     // printf("nMsgID = %x\n", nMsgID);
 
     ReceiveMessagePack *pReceiveMsg = new ReceiveMessagePack;
-    pReceiveMsg->pPackSig = new SigStruct[nNumSignals];
+    pReceiveMsg->pPackSig = new DBC_SigStruct[nNumSignals];
     pReceiveMsg->nNumSigs = 0;
     // pReceiveMsg->nChannelIndex = nChannelIndex;
 
@@ -49,7 +51,7 @@ int parse_xml_dbc_signal(rapidxml::xml_node<> *pPackageNode, const char *ChanNam
     // parse signal node
     rapidxml::xml_node<> *pSignalsNode = pPackageNode->first_node("Signals");
     rapidxml::xml_node<> *pSignalNode = pSignalsNode->first_node("Signal");
-    SigStruct *pSig = pReceiveMsg->	pPackSig;	
+    DBC_SigStruct *pSig = pReceiveMsg->	pPackSig;	
 
     for (int i = 0; i < nNumSignals; i++) {
         if (NULL != pSignalNode) {
@@ -62,6 +64,21 @@ int parse_xml_dbc_signal(rapidxml::xml_node<> *pPackageNode, const char *ChanNam
             pSig[pReceiveMsg->nNumSigs].strSigUnit = pSignalNode->first_node("Unit")->value();
             pSig[pReceiveMsg->nNumSigs].nStartBit = atoi(pSignalNode->first_node("StartBit")->value());
             pSig[pReceiveMsg->nNumSigs].nLen = atoi(pSignalNode->first_node("Length")->value());
+
+            rapidxml::xml_node<> *pOrder = pSignalNode->first_node("ByteOrder");
+            pSig[pReceiveMsg->nNumSigs].nByteOrder = (DBC_ByteOrder)(pOrder ? atoi(pOrder->value()) : 1);
+
+            char *pStrType = pSignalNode->first_node("Type")->value();
+            if (strcmp("SIGNED", pStrType) == 0) {
+                pSig[pReceiveMsg->nNumSigs].nType = DBC_SIGNED;
+            } else if (strcmp("UNSIGNED", pStrType) == 0) {
+                pSig[pReceiveMsg->nNumSigs].nType = DBC_UNSIGNED;
+            } else if (strcmp("FLOAT", pStrType) == 0) {
+                pSig[pReceiveMsg->nNumSigs].nType = DBC_FLOAT;
+            } else if (strcmp("DOUBLE", pStrType) == 0) {
+                pSig[pReceiveMsg->nNumSigs].nType = DBC_DOUBLE;
+            }
+
             pSig[pReceiveMsg->nNumSigs].StcFix.dFactor = atof(pSignalNode->first_node("SignalFactor")->value());
             pSig[pReceiveMsg->nNumSigs].StcFix.dOffset = atof(pSignalNode->first_node("SignalOffset")->value());
             pReceiveMsg->nNumSigs++;

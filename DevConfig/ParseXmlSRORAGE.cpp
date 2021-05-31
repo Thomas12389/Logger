@@ -7,9 +7,10 @@
 #include "datatype.h"
 
 extern Channel_MAP g_Channel_MAP;
+extern Inside_MAP g_Inside_MAP;
 extern stu_SaveMessage g_stu_SaveMessage;
 // 需要保存到文件的信号名称
-std::vector<std::string> g_save_MsgName;
+// std::vector<std::string> g_save_MsgName;
 
 int map_sigsave2sigin(rapidxml::xml_node<> *pMsgSaveNodes, int nNumMessages);
 
@@ -47,9 +48,41 @@ int map_sigsave2sigin(rapidxml::xml_node<> *pMsgSaveNodes, int nNumMessages) {
     for (int i = 0; i < nNumMessages; i++) {
         if (NULL == pMsgNode) break;    // 防止输出 xml 中 nNumMessages 配置错误（比实际多）造成段错误 
 
-        // 检查 Channel（如：是 CAN1 或者 CAN2）
         pSubMsgNode = pMsgNode->first_node("Reference");
+
+        // 1. 检查信号源（如： COM、CCP、GPS 等）
+        // 2. 匹配信号
+        char *pSource = pSubMsgNode->first_node("Source")->value();
+        char *pName = pSubMsgNode->first_node("Name")->value();
+        if (0 == strncmp("GPS", pSource, strlen(pSource)) ||
+            0 == strncmp("Internal", pSource, strlen(pSource)) ) {
+
+            Inside_MAP::iterator Itr = g_Inside_MAP.find(pSource);
+            if (Itr == g_Inside_MAP.end()) {
+                pMsgNode = pMsgNode->next_sibling("Message");
+                continue;
+            }
+
+            Inside_SigStruct *pSig = (Itr->second).pInsideSig;
+            for (int Idx = 0; Idx < (Itr->second).nNumSigs; Idx++) {
+                // 根据信号名称查找
+                if (pName != pSig[Idx].strSigName) continue;
+                // 找到对应信号
+                pSig[Idx].bIsSave = 1;
+                pSig[Idx].strSaveName = pMsgNode->first_node("MessageName")->value();
+                // 初始化信号值
+                g_stu_SaveMessage.msg_struct.msg_list.push_back({pSig[Idx].strSaveName, SIGNAL_NAN, pSig[Idx].strSigUnit, pSig[Idx].strSigFormat});
+                break;
+            }
+        }
+
+        // 检查 Channel（如：是 CAN1 或者 CAN2）
         pNode = pSubMsgNode->first_node("Channel");
+        // 内置信号无 Channel 节点，如 GPS 或者 Internal 等, 
+        if (NULL == pNode) {
+            pMsgNode = pMsgNode->next_sibling("Message");
+            continue;
+        }
         char *ChanName = pNode->value();
 
         Channel_MAP::iterator Itr = g_Channel_MAP.find(ChanName);
@@ -60,12 +93,10 @@ int map_sigsave2sigin(rapidxml::xml_node<> *pMsgSaveNodes, int nNumMessages) {
 
         // 1. 检查信号源（如：是 CAN1 的 COM 还是 CCP）
         // 2. 匹配信号
-        char *pSource = pSubMsgNode->first_node("Source")->value();
-        char *pName = pSubMsgNode->first_node("Name")->value();
         if (0 == strncmp("COM", pSource, strlen(pSource))) {
             COM_MAP_MsgID_RMsgPkg::iterator ItrCOMRcv = (Itr->second).CAN.mapDBC.begin();
             for (; ItrCOMRcv != (Itr->second).CAN.mapDBC.end(); ItrCOMRcv++) {
-                SigStruct *pSig = (ItrCOMRcv->second)->pPackSig;
+                DBC_SigStruct *pSig = (ItrCOMRcv->second)->pPackSig;
 
                 for (int Idx = 0; Idx < (ItrCOMRcv->second)->nNumSigs; Idx++) {
                     // 根据信号名比对，不同则继续比对下一个
@@ -75,9 +106,9 @@ int map_sigsave2sigin(rapidxml::xml_node<> *pMsgSaveNodes, int nNumMessages) {
                     pSig[Idx].bIsSave = 1;
                     pSig[Idx].strSaveName = pMsgNode->first_node("MessageName")->value();
                     // 按顺序保存需要存储的信号名称
-                    g_save_MsgName.emplace_back(pSig[Idx].strSaveName);
+                    // g_save_MsgName.emplace_back(pSig[Idx].strSaveName);
                     // 初始化信号值
-                    g_stu_SaveMessage.msg_struct.msg_map[pSig[Idx].strSaveName] = {SIGNAL_NAN, pSig[Idx].strSigUnit, pSig[Idx].strSigFormat};
+                    g_stu_SaveMessage.msg_struct.msg_list.push_back({pSig[Idx].strSaveName, SIGNAL_NAN, pSig[Idx].strSigUnit, pSig[Idx].strSigFormat});
                     break;
                 }
             }
@@ -102,9 +133,9 @@ int map_sigsave2sigin(rapidxml::xml_node<> *pMsgSaveNodes, int nNumMessages) {
                             pEle[nIdxEle].bIsSave = 1;
                             pEle[nIdxEle].strSaveName = pMsgNode->first_node("MessageName")->value();
                             // 按顺序保存需要存储的信号名称
-                            g_save_MsgName.emplace_back(pEle[nIdxEle].strSaveName);
+                            // g_save_MsgName.emplace_back(pEle[nIdxEle].strSaveName);
                             // 初始化信号值
-                            g_stu_SaveMessage.msg_struct.msg_map[pEle[nIdxEle].strSaveName] = {SIGNAL_NAN, pEle[nIdxEle].strElementUnit, pEle[nIdxEle].strElementFormat};
+                            g_stu_SaveMessage.msg_struct.msg_list.push_back({pEle[nIdxEle].strSaveName, SIGNAL_NAN, pEle[nIdxEle].strElementUnit, pEle[nIdxEle].strElementFormat});
                             break;
                         }
                     }
@@ -116,5 +147,14 @@ int map_sigsave2sigin(rapidxml::xml_node<> *pMsgSaveNodes, int nNumMessages) {
         pMsgNode = pMsgNode->next_sibling("Message");
 
     }
+
+#if 0
+    LIST_Message::iterator ItrList = g_stu_SaveMessage.msg_struct.msg_list.begin();
+    for (; ItrList != g_stu_SaveMessage.msg_struct.msg_list.end(); ItrList++) {
+        printf("name : %s, val = %lf, uint : %s\n", (*ItrList).strName.c_str(), (*ItrList).dPhyVal, (*ItrList).strPhyUnit.c_str());
+    }
+    printf("\n");
+#endif
+
     return 0;
 }

@@ -9,6 +9,7 @@ typedef enum MQTT_TOPIC {
 	info_json,
 	kpiDashboard,
 	layout_json,
+	limits,
 	online,
 	setChannelValue,
 	signals,

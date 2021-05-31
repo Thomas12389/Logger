@@ -70,7 +70,7 @@ int load_all_json(const char *pJsonDirPath) {
 	strncat(info_json_path, "/info.json", strlen("/info.json"));
 	ret = load_info_json(info_json_path);
 	if (ret) {
-		XLOG_TRACE("load_app_json ERROR.");
+		XLOG_TRACE("load_info_json ERROR.");
 		return -1;
 	}
 

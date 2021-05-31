@@ -6,7 +6,7 @@
  ************************************************************************/
 
 #include <iostream>
-using namespace std;
+#include <cstring>
 
 #include "SftpClient.h"
 #include "DevConfig/PhyChannel.hpp"
@@ -21,8 +21,10 @@ using namespace std;
 extern Net_Info g_Net_Info;
 extern File_Save g_File_Info;
 
-// 文件目录
+// 数据文件目录
 extern std::string STORGE_DIR_NAME;
+// 日志文件目录
+extern std::string LOG_DIR_NAME;
 
 int remove_recursively(const char *dir) {
 	// 检查路径是否存在
@@ -68,19 +70,59 @@ int remove_recursively(const char *dir) {
 int sftp_upload() {
 
 	// compress
-	std::string ABSOULT_PATH_NAME = STORGE_DIR_NAME + g_File_Info.strLocalDirName;
+	std::string data_absoult_path = STORGE_DIR_NAME + g_File_Info.strLocalDirName;
+	std::string log_file_name = "log_" + g_File_Info.strLocalDirName + ".log";
 
 	char compressName[256] = {0};
 	strcpy(compressName, (char *)(g_File_Info.strRemoteFileName + '_' + g_File_Info.strLocalDirName + ".gz").c_str());
 	
 	int ret = 0;
-    if ( 0 == compress_gz(ABSOULT_PATH_NAME.c_str(), compressName)) {
-		ret = remove_recursively(ABSOULT_PATH_NAME.c_str());
+	// 压缩数据文件
+	ret = compress_gz(data_absoult_path.c_str(), compressName);
+    if ( 0 == ret) {
+		XLOG_DEBUG("compress data file successfully.");
+
+		ret = remove_recursively(data_absoult_path.c_str());
 		if (ret < 0) {
 			XLOG_DEBUG("remove_recursively error.");
 		}
-		XLOG_DEBUG("compress .gz file successfully.");
+
 	}
+
+	// 最终打包文件名
+	char tar_name[512] = {0};
+	strncat(tar_name, data_absoult_path.c_str(), data_absoult_path.length());
+	strncat(tar_name, ".tgz", strlen(".tgz"));
+	// 打包压缩命令
+	char tar_cmd[1024] = {0};
+	strncat(tar_cmd, "tar -zcvPf ", strlen("tar -zcvPf "));
+	strncat(tar_cmd, tar_name, strlen(tar_name));
+	// 数据文件
+	strncat(tar_cmd, " -C ", strlen(" -C "));
+	strncat(tar_cmd, STORGE_DIR_NAME.c_str(), STORGE_DIR_NAME.length());
+	strncat(tar_cmd, " ", strlen(" "));
+	strncat(tar_cmd, compressName, strlen(compressName));
+	// 数据描述文件
+	char cp_cmd[512] = {0};
+	char desp_xml[256] = "description.xml";
+	strncat(cp_cmd, "cp /home/debian/WINDHILLRT/hw.xml ", strlen("cp /home/debian/WINDHILLRT/hw.xml "));
+	strncat(cp_cmd, STORGE_DIR_NAME.c_str(), STORGE_DIR_NAME.length());
+	strncat(cp_cmd, desp_xml, strlen(desp_xml));
+	system(cp_cmd);
+
+	strncat(tar_cmd, " ", strlen(" "));
+	strncat(tar_cmd, desp_xml, strlen(desp_xml));
+	// 日志文件
+	strncat(tar_cmd, " -C ", strlen(" -C "));
+	strncat(tar_cmd, LOG_DIR_NAME.c_str(), LOG_DIR_NAME.length());
+	strncat(tar_cmd, " ", strlen(" "));
+	strncat(tar_cmd, log_file_name.c_str(), log_file_name.length());
+	// 打包压缩后删除源文件
+	strncat(tar_cmd, " --remove-files", strlen(" --remove-files"));
+			
+	// printf("tar cmd :  %s\n", tar_cmd);
+	system(tar_cmd);
+
 
 	SftpClient *client = new SftpClient(g_Net_Info.ftp_server.strIP, g_Net_Info.ftp_server.nPort,
 									g_Net_Info.ftp_server.strUserName, g_Net_Info.ftp_server.strPasswd);
@@ -111,15 +153,19 @@ int sftp_upload() {
 	// 构建上传文件名
 	char uploadDir[256] = {0};
 	char uploadName[256] = {0};
+	// 远程文件夹名称 -- 设备序列号
 	strncat(uploadDir, (g_File_Info.strRemoteDirName).c_str(), g_File_Info.strRemoteDirName.length());
+	// 远程文件名称（在当前工作目录下的绝对路径）
 	strncat(uploadName, uploadDir, strlen(uploadDir));
-	strncat(uploadName, compressName, strlen(compressName));
+	char name[256] = {0};
+	strcpy(name, strrchr(tar_name, '/'));
+	strncat(uploadName, name, strlen(name));
+	printf("%s\n", uploadName);
 	XLOG_INFO("Remote file path: {}", uploadName);
 
-	// 本地压缩文件名（绝对路径）
+	// 本地待上传文件名（绝对路径）
 	char localCompressFileName[256] = {0};
-	strncat(localCompressFileName, STORGE_DIR_NAME.c_str(), STORGE_DIR_NAME.length());
-	strncat(localCompressFileName, compressName, strlen(compressName));
+	strncat(localCompressFileName, (data_absoult_path + ".tgz").c_str(), (data_absoult_path + ".tgz").length());
 
 	ret = client->SftpUpload(localCompressFileName, uploadDir, uploadName);
 	if (0 != ret) {

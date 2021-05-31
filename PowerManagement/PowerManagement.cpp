@@ -48,6 +48,7 @@ void *enter_stop_mode_thread(void *arg) {
    pre_to_stop_mode_1();
    // 停止发布
    publish_stop();
+   save_stop();
    // 保存缓冲区数据，并停止文件保存
    save_files(0, 0, 1);
    // 上传数据文件

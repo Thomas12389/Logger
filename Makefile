@@ -5,8 +5,11 @@ ARM_CXX = arm-linux-gnueabihf-g++
 OBJECT = test_demo
 #DEFINITIONS
 DEFS = -DTRACES_VERIFICATION
-DEFS += -DTRACE_TRACES	# 查看所有输出，发布时注释掉
-DEFS += -DDEBUG_TRACES	# 调试信息，发布时注释掉
+#DEFS += -DGLIBCXX_USE_CXX11_ABI=0
+# 查看所有输出，发布时注释掉
+DEFS += -DTRACE_TRACES
+# 调试信息，发布时注释掉
+DEFS += -DDEBUG_TRACES
 
 #Source Files
 SOURCE_FILE = $(wildcard ./DevConfig/*.cpp)
@@ -43,6 +46,11 @@ LIBS += -lRTU_Module -lIOs_Module -lGPS2_Module -lGSM_Module -lINET_Module
 #STRIP
 ARM_STRIP = arm-linux-gnueabihf-strip
 
+#FLAGS
+FLAGS = -Wall
+FLAGS += -std=c++11
+FLAGS += -Os
+
 all:
-	$(ARM_CXX) -Wall -std=c++11 $(DEFS) -o$(OBJECT) $(SOURCE_FILE) $(INCLS) $(LIBS)
+	$(ARM_CXX) $(FLAGS) $(DEFS) -o$(OBJECT) $(SOURCE_FILE) $(INCLS) $(LIBS)
 	$(ARM_STRIP) $(OBJECT)

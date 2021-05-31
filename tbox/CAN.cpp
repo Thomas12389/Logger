@@ -28,17 +28,23 @@
 static CAN_CHOOSE g_stCanChoose;		//结构体，存储CAN使用情况
 static char set_shell[100];	//存储要执行的shell命令
 
+// CAN 消息全局缓冲区
 stu_CAN_UOMAP_ChanName_RcvPkg g_stu_CAN_UOMAP_ChanName_RcvPk;
 
 extern Channel_MAP g_Channel_MAP;
 
-// 大小写转换， 0 转小写， 1 转大写
-int strUpLowTrans(char *dst, char *src, int flag) {
+typedef enum LETTER_CASE : uint8_t {
+	LOWER,
+	UPPER
+} LETTER_CASE;
+
+// 大小写转换
+int strUpLowTrans(char *dst, char *src, LETTER_CASE flag) {
 	if (NULL == dst || NULL == src) return -1;
 
 	for (int i = 0; src[i]; i++) {
 		if (isalpha(src[i])) {
-			dst[i] = (flag ? toupper(src[i]) : tolower(src[i]));
+			dst[i] = (flag == LETTER_CASE::UPPER ? toupper(src[i]) : tolower(src[i]));
 		} else {
 			dst[i] = src[i];
 		}
@@ -69,6 +75,9 @@ int socket_can_init(const char *strNameCAN) {
 	int can_fd;
 	struct sockaddr_can addr;
     struct ifreq ifr;
+	// 结构体变量清零，否则开编译优化时可能出错
+	memset(&addr, 0, sizeof(struct sockaddr_can));
+	memset(&ifr, 0, sizeof(struct ifreq));
 
 	//socket can
 	if ((can_fd = socket(PF_CAN, SOCK_RAW, CAN_RAW)) < 0) {
@@ -102,17 +111,18 @@ void *can_receive_thread(void *arg) {
 	// 保存 socket fd，直接使用可能会出错
 	int can_fd = can_info->nFd;
 	// 转换通道名称
-	char strChannelName[10];
-	strUpLowTrans(strChannelName, can_info->nChanName, 1);
+	char strChannelName[10] = {0};
+	strUpLowTrans(strChannelName, can_info->nChanName, LETTER_CASE::UPPER);
+
 	while(1) {
 		// Receive packet	
 		nbytes = read(can_fd, &canMessage, sizeof(canMessage));
 		while(nbytes == -1) {
-			usleep(10);
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			nbytes = read(can_fd, &canMessage, sizeof(canMessage));	
 		}
 #if 0
-		printf("\n%s receive   ", strChannelName);
+		printf("\n%s(%d) receive   ", strChannelName, can_fd);
 		printf("0x%02X    ", canMessage.can_id);
 		for (int i = 0; i < canMessage.can_dlc; i++) {
 			printf("%02X ", canMessage.data[i]);
@@ -122,7 +132,7 @@ void *can_receive_thread(void *arg) {
 		Channel_MAP::iterator ItrChan = g_Channel_MAP.find(strChannelName);
 		if (ItrChan == g_Channel_MAP.end()) continue;
 
-		// uint64_t time_stamp = getTimestamp(3);
+		// uint64_t time_stamp = getTimestamp(TIME_STAMP::MS_STAMP);
 		CANReceive_Buffer RcvTemp;
 		// RcvTemp.rcv_timestamp = time_stamp;
 		RcvTemp.can_id = canMessage.can_id;
@@ -134,7 +144,7 @@ void *can_receive_thread(void *arg) {
 			uint32_t can_err_flags = RcvTemp.can_id & CAN_ERR_FLAG;
 			if (can_err_flags) {	// 接收到错误帧
 				char temp_can_channel[10] = {0};
-				strUpLowTrans(temp_can_channel, strChannelName, 0);
+				strUpLowTrans(temp_can_channel, strChannelName, LETTER_CASE::LOWER);
 				switch (can_err_flags) {
 					// TODO: 各种错误检测记录
 					case CAN_ERR_BUSOFF:
@@ -236,9 +246,12 @@ int Can_Start(void) {
 				return -1;
 			}
 			
-			struct canInfo info((canInfo){fd, (char *)"CAN1"});
+			struct canInfo *info = (struct canInfo *)malloc(sizeof(struct canInfo));
+			info->nChanName = (char *)"CAN1";
+			info->nFd = fd;
 
-			while(0 != pthread_create(&threadCan[0], NULL, can_receive_thread, (void *)&info) ) {
+			while (getTimestamp(TIME_STAMP::MS_STAMP) % 1000 > 10);
+			while(0 != pthread_create(&threadCan[0], NULL, can_receive_thread, (void *)info) ) {
 				perror("can1 pthread_create");
 			}
 			pthread_setname_np(threadCan[0], "can1 receive");
@@ -248,7 +261,7 @@ int Can_Start(void) {
 			// DBC
 			if (!ItrChan->second.CAN.mapDBC.empty()) {
 				// std::shared_ptr<DBC> objDBC = std::make_shared<DBC>(info);
-				DBC *objDBC = new DBC(std::move(info));
+				DBC *objDBC = new DBC(std::move(*info));
 				if(0 == objDBC->Init()) {
 
 				}
@@ -260,7 +273,7 @@ int Can_Start(void) {
 				std::vector<CCP_TEST*> vecCCP(nNumCCP);
 				CCP_MAP_Salve_DAQList::iterator Itr = ItrChan->second.CAN.mapCCP.begin();
 				for (int i = 0; i < nNumCCP; i++) {
-					vecCCP[i] = new CCP_TEST(info, Itr->first);
+					vecCCP[i] = new CCP_TEST(*info, Itr->first);
 					if (0 == vecCCP[i]->Init()) {
 
 					}
@@ -276,9 +289,13 @@ int Can_Start(void) {
 				XLOG_CRITICAL("can2 socket_init");
 				return -2;
 			}
-			struct canInfo info((canInfo){fd, (char *)"CAN2"});
 
-			while(0 != pthread_create(&threadCan[1], NULL, can_receive_thread, (void *)&info) ) {
+			// struct canInfo info((canInfo){fd, (char *)"CAN2"});
+			struct canInfo *info = (struct canInfo *)malloc(sizeof(struct canInfo));
+			info->nChanName = (char *)"CAN2";
+			info->nFd = fd;
+
+			while(0 != pthread_create(&threadCan[1], NULL, can_receive_thread, (void *)info) ) {
 				perror("can2 pthread_create");
 			}
 			pthread_setname_np(threadCan[1], "can2 receive");
@@ -286,7 +303,7 @@ int Can_Start(void) {
 
 			if (!ItrChan->second.CAN.mapDBC.empty()) {
 				// std::shared_ptr<DBC> objDBC = std::make_shared<DBC>(info);
-				DBC *objDBC = new DBC(std::move(info));
+				DBC *objDBC = new DBC(std::move(*info));
 				if(0 == objDBC->Init()) {
 
 				}
@@ -299,7 +316,7 @@ int Can_Start(void) {
 				std::vector<CCP_TEST*> vecCCP(nNumCCP);
 				CCP_MAP_Salve_DAQList::iterator Itr = ItrChan->second.CAN.mapCCP.begin();
 				for (int i = 0; i < nNumCCP; i++) {
-					vecCCP[i] = new CCP_TEST(info, Itr->first);
+					vecCCP[i] = new CCP_TEST(*info, Itr->first);
 					
 					if (0 == vecCCP[i]->Init()) {
 						// int ret = vecCCP[i]->DAQList_Initialization();
@@ -312,12 +329,13 @@ int Can_Start(void) {
 			}
 
 			if (!ItrChan->second.CAN.mapOBD.empty()) {
-				OBD *objOBD = new OBD(std::move(info));
+				OBD *objOBD = new OBD(std::move(*info));
 				if(0 == objOBD->Init()) {
 
 				}
 
 			}
+
 		}
 	}
 		

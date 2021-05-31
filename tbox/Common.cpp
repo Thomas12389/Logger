@@ -8,8 +8,11 @@
 #include "tbox/GSM.h"
 #include "tbox/GPRS_iNet.h"
 #include "tbox/GPS.h"
+#include "tbox/Internal.h"
 #include "tbox/CAN.h"
 #include "Mosquitto/MOSQUITTO.h"
+#include "PublishSignals/PublishSignals.h"
+#include "SaveFiles/SaveFiles.h"
 
 #include "Logger/Logger.h"
 
@@ -150,9 +153,10 @@ int EndIOModule( void )
 	return 0;
 }
 
+// 测试使用
 void handler_exit(int num) {
-	unsigned char id = 1;
-	OWASYS_StopTimer(id);
+	// unsigned char id = 1;
+	// OWASYS_StopTimer(id);
 
 	int ReturnCode = 0;
 	// the GPS operation must be finish in case other modules remain running
@@ -161,14 +165,14 @@ void handler_exit(int num) {
 		fprintf(stderr, "EndGPSModule ERROR!\n");
 	}
 
+	End_Internal();
+
 	OBD_Run = 0;
 	CCP_Run = 0;
 	Can_Stop();
-	
-	ReturnCode = Mosquitto_Disconnect();
-	if (-1 == ReturnCode) {
-		fprintf(stderr, "Mosquitto_Disconnect ERROR!\n");
-	}
+
+	publish_stop();
+	save_stop();
 
 	SyncTime();
 
@@ -187,8 +191,8 @@ void handler_exit(int num) {
 	}
 
 	XLOG_END();
-	
-	exit(num);
+
+	exit(1);
 }
 
 void pre_to_stop_mode_1() {
@@ -201,6 +205,7 @@ void pre_to_stop_mode_1() {
 	} else {
 		XLOG_INFO("End GPS module successfully.");
 	}
+	End_Internal();
 
 	OBD_Run = 0;
 	CCP_Run = 0;
@@ -221,26 +226,29 @@ void pre_to_stop_mode_2() {
 }
 
 // get the timestamp
-uint64_t getTimestamp(int type) {
+uint64_t getTimestamp(TIME_STAMP type) {
 
 	struct timespec time_ns;
 	clock_gettime(CLOCK_REALTIME, &time_ns);
 	uint64_t time_stamp = 0;
 	switch (type) {
-		case 1:	{	// ms
+		case TIME_STAMP::S_STAMP: {
+			time_stamp = (uint64_t)time_ns.tv_sec;
+			break;
+		}
+		case TIME_STAMP::MS_STAMP:	{	// ms
 			time_stamp = (uint64_t)time_ns.tv_sec * 1000 + time_ns.tv_nsec / 1000000;
 			break;
 		}
-		case 2: {	// us
+		case TIME_STAMP::US_STAMP: {	// us
 			time_stamp = (uint64_t)time_ns.tv_sec * 1000000 + time_ns.tv_nsec / 1000;
 			break;
 		}
-		case 3: {	// ns
+		case TIME_STAMP::NS_STAMP: {	// ns
 			time_stamp = (uint64_t)time_ns.tv_sec * 1000000000 + time_ns.tv_nsec;
 			break;
 		}
 		default: {
-			time_stamp = (uint64_t)time_ns.tv_sec;
 			break;
 		}
 	}

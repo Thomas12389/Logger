@@ -142,7 +142,7 @@ int parse_xml_ccp_element(rapidxml::xml_node<> *pODTNode, CCP_ODT *pCCP_ODT) {
                 break;
             }
             pCCP_Ele[pCCP_ODT->nNumElements].nLen = atoi(pNode->value());
-
+            // TODO：数据类型表示
             pNode = pElement->first_node("TYPE");
             char *pStrType = pNode->value();
             if (strcmp("SIGNED", pStrType) == 0) {

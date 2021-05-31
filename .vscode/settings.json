@@ -69,6 +69,7 @@
         "typeindex": "cpp",
         "variant": "cpp",
         "queue": "cpp",
-        "cjson.h": "c"
+        "cjson.h": "c",
+        "dirent.h": "c"
     }
 }

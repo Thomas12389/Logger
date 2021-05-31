@@ -49,7 +49,8 @@ int parse_xml_obd_subfunc(OBD_Function *pOBD_Function) {
         pOBD_SubFunc[pOBD_Function->nNumSubFunction].StcFix.dFactor = obd_signal_factor[pOBD_Function->nNumSubFunction];
         pOBD_SubFunc[pOBD_Function->nNumSubFunction].StcFix.dOffset = obd_signal_offest[pOBD_Function->nNumSubFunction];
         pOBD_SubFunc[pOBD_Function->nNumSubFunction].StcFix.dDenominator = obd_signal_denominator[pOBD_Function->nNumSubFunction];
-        // 向外发布，应该在 MQTT 部分解析
+        
+        // TODO： 向外发布，应该在 MQTT 部分解析
         pOBD_SubFunc[pOBD_Function->nNumSubFunction].bIsSend = 1;
         pOBD_SubFunc[pOBD_Function->nNumSubFunction].strOutName = obd_signal_name[pOBD_Function->nNumSubFunction];
         //

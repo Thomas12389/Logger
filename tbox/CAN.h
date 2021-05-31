@@ -24,7 +24,7 @@
 typedef struct CAN_CHOOSE
 {
 	int nNumCan;
-	int wCan[CAN_NUM];	//wCan[i]	CAN(i+1)
+	char wCan[CAN_NUM];	//wCan[i]	CAN(i+1)
 						//	1		  使用
 						//	0		  不使用
 } CAN_CHOOSE;
@@ -37,9 +37,12 @@ struct canInfo {
 // CAN 接收缓冲区
 struct CANReceive_Buffer {
 	// uint64_t rcv_timestamp;
-	uint32_t can_id;
-	uint8_t can_dlc;
-	uint8_t can_data[8];
+	uint32_t	can_id;
+	uint8_t		can_dlc;
+	uint8_t		__pad;   /* padding */
+	uint8_t		__res0;  /* reserved / padding */
+	uint8_t		__res1;  /* reserved / padding */
+	uint8_t		can_data[8] __attribute__((aligned(8)));
 };
 
 typedef std::unordered_map<uint32_t, CANReceive_Buffer> CAN_UOMAP_MsgID_Buffer;

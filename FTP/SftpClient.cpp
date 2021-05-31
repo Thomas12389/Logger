@@ -197,6 +197,7 @@ int SftpClient::SftpUpload(const char* LocalFile, const char* uploadDir, const c
         return -1;
     } else {
         libssh2_sftp_seek64(sftp_handle, attrs.filesize);
+        totalBytes -= attrs.filesize;
         XLOG_DEBUG("Did a seek to position {:d}", (long) attrs.filesize);
     }
 

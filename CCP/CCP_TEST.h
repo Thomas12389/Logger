@@ -8,7 +8,6 @@ class CCP_TEST : public CROMessage{
 	private:
 		const canInfo pCANInfo;
         bool bReceiveThreadRunning;
-        bool bReinitializeThreadRunning;
         std::vector<uint32_t> vecDAQID;
 
         // unsigned char ccp_timer_id;

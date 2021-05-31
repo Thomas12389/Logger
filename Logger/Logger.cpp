@@ -5,6 +5,8 @@
 #include "spdlog/sinks/rotating_file_sink.h"
 
 #include "Logger/Logger.h"
+
+std::string LOG_DIR_NAME = "/home/debian/log/";
  
 XLogger* XLogger::getInstance() {
 	static XLogger xlogger;
@@ -30,17 +32,16 @@ void XLogger::InitXLogger(std::string log_file_name, int log_level, bool is_cons
 	}
 
 	// hardcode log path
-	const std::string log_dir = "/home/debian/log"; // should create the folder if not exist
+	const std::string log_dir = LOG_DIR_NAME; // should create the folder if not exist
 	const std::string logger_name_prefix = "log";
 	
 	// logger name with timestamp
 	const std::string logger_name = logger_name_prefix + '_' + log_file_name + ".log";
-	const std::string log_path = log_dir + "/" + logger_name;
+	const std::string log_path = log_dir + logger_name;
 	// 输出重定向
 	// freopen(log_path.c_str(), "a+", stdout);
 
-	try
-	{
+	try {
 		m_logger = spdlog::create_async<spdlog::sinks::rotating_file_sink_mt>(logger_name, log_path, 5 * 1024 * 1024, 3); // multi part log files, with every part 5M, max 3 files
 
 		// flush immediately when an error level above encountered
@@ -50,6 +51,7 @@ void XLogger::InitXLogger(std::string log_file_name, int log_level, bool is_cons
 		// note: registered loggers *must* be thread safe for this to work correctly!
 		// spdlog::flush_every(std::chrono::seconds(3));
 		spdlog::flush_every(std::chrono::seconds(1));
+
 #if defined(TRACE_TRACES)
 		m_logger->set_pattern("[%Y-%m-%d %H:%M:%S.%f] <thread %t> [%=9l] [%@] %v"); // with timestamp, thread_id, filename and line number
 		m_logger->set_level(spdlog::level::trace);
@@ -61,9 +63,9 @@ void XLogger::InitXLogger(std::string log_file_name, int log_level, bool is_cons
 		m_logger->set_pattern("[%Y-%m-%d %H:%M:%S.%f] [%=9l] %v");
 		m_logger->set_level(static_cast<spdlog::level::level_enum>(log_level));
 #endif
+
 	}
-	catch (const spdlog::spdlog_ex &ex)
-	{
+	catch (const spdlog::spdlog_ex &ex) {
 		printf("Log initialization failed: %s\n", ex.what());
 	}
 }

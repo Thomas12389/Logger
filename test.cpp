@@ -2,12 +2,14 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <sys/vfs.h>
 
 #include "tbox/Common.h"
 #include "tbox/GSM.h"
 #include "tbox/GPRS_iNet.h"
 #include "tbox/CAN.h"
 #include "tbox/GPS.h"
+#include "tbox/Internal.h"
 #include "Mosquitto/MOSQUITTO.h"
 #include "Mosquitto/LoadJSON.h"
 
@@ -15,15 +17,17 @@
 #include "PublishSignals/PublishSignals.h"
 #include "SaveFiles/SaveFiles.h"
 #include "PowerManagement/PowerManagement.h"
-#include <sys/vfs.h>
 
 #include "Logger/Logger.h"
 #include "tbox/LED_Control.h"
+#include "DevConfig/PhyChannel.hpp"
 
 sem_t simSem;
 
 extern std::string STORGE_DIR_NAME;
 extern int runGSMHandlerEvents;
+
+extern Inside_MAP g_Inside_MAP;
 
 void *Net_Active(void *arg)
 {
@@ -35,13 +39,14 @@ void *Net_Active(void *arg)
 	while(runGSMHandlerEvents) {
 		isActive = 0;
 		usecsleep(1, 0);
+		if (!runGSMHandlerEvents) break;
 		// sem_wait(&simSem);
 
 		if (NO_ERROR != GSM_GetRegistration(&wRegistration)) {	// Gets the current network status.
 			XLOG_DEBUG("GSM_GetRegistration ERROR.");
 			continue;
 		}
-		XLOG_DEBUG("GSM Network status {}.", (int)wRegistration);
+		// XLOG_DEBUG("GSM Network status {}.", (int)wRegistration);
 		if (NO_NETWORK == wRegistration) {
 			XLOG_ERROR("GSM Network interruption.");
 			GSM_IsActive(&isActive);	//Checks if the GSM module is switched ON and active.
@@ -260,10 +265,23 @@ int main()
 	}
 
 	/* GPS */
-	if (0 != InitGPSModule()) {
-		XLOG_WARN("GPS moudle Initialization ERROR.");
-	} else {
-		XLOG_INFO("GPS module initialized successfully.");
+	if (g_Inside_MAP.count("GPS") && g_Inside_MAP["GPS"].isEnable) {
+		retval = InitGPSModule();
+		if (0 != retval) {
+			XLOG_WARN("GPS moudle Initialization ERROR.");
+		} else {
+			XLOG_INFO("GPS module initialized successfully.");
+		}
+	}
+
+	/* Internal signal */
+	if (g_Inside_MAP.count("Internal") && g_Inside_MAP["Internal"].isEnable) {
+		retval = Init_Internal();
+		if (0 != retval) {
+			XLOG_WARN("Internal moudle Initialization ERROR.");
+		} else {
+			XLOG_INFO("Internal module initialized successfully.");
+		}
 	}
 
 	/* CAN */	
@@ -281,18 +299,25 @@ int main()
 	// 启动文件存储功能
 	save_init();
 
-	XLOG_INFO("Waiting for GSM Initialization and Internet session(about 40s)...");
-	
-	/* GSM */	
- 	if(-1 == gsmStart()) {
-		XLOG_INFO("GSM moudle start ERROR! Retry...");
+	// TODO: 增加网络通信方式的配置文件
+	COMMUNICATION_MODE com_mode = COMMUNICATION_MODE::Modem;
+	if (com_mode == COMMUNICATION_MODE::Modem) {
+		XLOG_INFO("Waiting for GSM Initialization and Internet session(about 40s)...");
+		
+		// /* GSM */	
 		if(-1 == gsmStart()) {
-			XLOG_WARN("GSM start ERROR.");
+			XLOG_INFO("GSM moudle start ERROR! Retry...");
+			if(-1 == gsmStart()) {
+				XLOG_WARN("GSM start ERROR.");
+			}
 		}
+		
+		// /* iNet */
+		iNetStart();
 	}
-	
-	/* iNet */
-	iNetStart();
+
+	/* sync time */
+	SyncTime();
 
 	/* mosquitto */
 	do {

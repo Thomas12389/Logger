@@ -8,6 +8,9 @@
 #include "DevConfig/PhyChannel.hpp"
 
 #include "Logger/Logger.h"
+#include "datatype.h"
+
+#define Motorola_LSB
 
 extern Channel_MAP g_Channel_MAP;
 stu_OutMessage g_stu_OutMessage;
@@ -81,6 +84,7 @@ int can_obd_convert2msg(const char *ChanName, uint32_t nCANID, uint8_t *pMsgData
 
     // printf("obd %s value = %f\n", pOBD_SubFunc[nIdxSubFunc].strOutName.c_str(), dPhyValue);
     Out_Message Msg;
+    Msg.strName = pOBD_SubFunc[nIdxSubFunc].strOutName;
     Msg.dPhyVal = dPhyValue;
     Msg.strPhyUnit = pOBD_SubFunc[nIdxSubFunc].strOBDSubFuncUnit;
     Msg.strPhyFormat = pOBD_SubFunc[nIdxSubFunc].strOBDSubFuncFormat;
@@ -119,67 +123,131 @@ int can_dbc_convert2msg(const char *ChanName, uint32_t nCANID, uint8_t *pMsgData
     }
 
     // convert data
-    for (int i = 0; i < pRevPackInfo->nNumSigs; i++) {
-        int64_t lRet = 0;
-        int nLen = (pRevPackInfo->pPackSig)[i].nLen;    // get the signal length
-        int nStartIndex = (pRevPackInfo->pPackSig)[i].nStartBit / 8;  // get the sequence number of the byte in which the start bit resides
+    DBC_SigStruct *pSig = pRevPackInfo->pPackSig;
+    for (int idxSig = 0; idxSig < pRevPackInfo->nNumSigs; idxSig++) {
+        uint64_t lRet = 0;
+        DBC_ByteOrder nOrder = pSig[idxSig].nByteOrder;
+        int nLen = pSig[idxSig].nLen;    // get the signal length
+        int nStartIndex = pSig[idxSig].nStartBit / 8;  // get the sequence number of the byte in which the start bit resides
         uint8_t u8DataStart = (pMsgData[nStartIndex]);  // get the value of the byte in which start bit resides
-        int nStartOffest = (pRevPackInfo->pPackSig)[i].nStartBit % 8;   // get the position of the start bit in the corrdsponding byte
-        u8DataStart >>= nStartOffest;       // get the value from start bit to the 8th bit of the corresponding byte
-        int nLeft = nLen - (8 - nStartOffest);  // get the remaining bit length after removing the length of nStartOffest
+        int nStartOffest = pSig[idxSig].nStartBit % 8;   // get the position of the start bit in the corrdsponding byte
+
+        // 起始字节
+        int nLeft = 0;
+        if (DBC_Intel == nOrder) {
+            u8DataStart >>= nStartOffest;       // get the value from start bit to the 8th bit of the corresponding byte
+            nLeft = nLen - (8 - nStartOffest);  // get the remaining bit length after removing the length of nStartOffest
+        } else if (DBC_Motorola == nOrder) {
+#ifdef Motorola_LSB
+            u8DataStart >>= nStartOffest;
+            nLeft = nLen - (8 - nStartOffest);
+#else
+            u8DataStart &= (0xFF >> (7 - nStartOffest));       // get the value from start bit to the 1th bit of the corresponding byte
+            nLeft = nLen - (nStartOffest + 1);  // get the remaining bit length after removing the length of nStartOffest
+#endif
+        }
 
         if (nLeft > 0) {        // the signal cross a byte
+            // 中间整字节
             lRet |= u8DataStart;
             int nByteCount = nLeft / 8;     // get the number of bytes of the remaining bit length
             int tempByteCount = nByteCount;
 
-            while (nByteCount--) {
+            uint64_t temp = 0;
+            if (DBC_Intel == nOrder) {
                 /* Intel */
-                uint64_t temp = ((uint64_t)pMsgData[++nStartIndex]) << (((tempByteCount - nByteCount) << 3) - nStartOffest);
-                lRet |= temp;
-                /* Motorola */
-                // lRet <<= 8;
-                // lRet |= pMsgData[++nStartIndex];
+                while (nByteCount--) {
+                    temp = ((uint64_t)pMsgData[++nStartIndex]) << (((tempByteCount - nByteCount) << 3) - nStartOffest);
+                    lRet |= temp;
+                } 
+            } else if (DBC_Motorola == nOrder) {
+                /* Motorola */ // TODO
+                while (nByteCount--) {
+#ifdef Motorola_LSB
+                    temp = ((uint64_t)pMsgData[--nStartIndex]) << (((tempByteCount - nByteCount) << 3) - nStartOffest);
+                    lRet |= temp;
+#else
+                    lRet <<= 8;
+                    lRet |= pMsgData[++nStartIndex];
+#endif                    
+                }
             }
-            int nEndOffset = nLeft % 8;     // the remaining bit length in addition to the whole byte
-            if (nEndOffset) {
-                uint8_t u8DataEnd = pMsgData[++nStartIndex];
-                uint8_t uMask = 0xFF >> (8 - nEndOffset);   // get nEndOffset digits of 1
-                u8DataEnd &= uMask;
+            // 最后剩余位数
+            int nEndLength = nLeft % 8;     // the remaining bit length in addition to the whole byte
+            if (nEndLength) {
 
-                /* Intel */
-                uint64_t temp = ((uint64_t)u8DataEnd) << (nLen - nEndOffset);
-                lRet |= temp;
-                /* Motorola */
-                // lRet <<= nEndOffset;
-                // lRet |= u8DataEnd;
+                if (DBC_Intel == nOrder) {
+                    uint8_t u8DataEnd = pMsgData[++nStartIndex];
+                    u8DataEnd &= (0xFF >> (8 - nEndLength));
+                    uint64_t temp = ((uint64_t)u8DataEnd) << (nLen - nEndLength);
+                    lRet |= temp;
+                } else if (DBC_Motorola == nOrder) {
+#ifdef Motorola_LSB
+                    uint8_t u8DataEnd = pMsgData[--nStartIndex];
+                    u8DataEnd &= (0xFF >> (8 - nEndLength));
+                    uint64_t temp = ((uint64_t)u8DataEnd) << (nLen - nEndLength);
+                    lRet |= temp;
+#else
+                    uint8_t u8DataEnd = pMsgData[++nStartIndex];
+                    u8DataEnd >>= (8 - nEndLength);printf("lRet = %llx\n", lRet);
+                    lRet <<= nEndLength;
+                    lRet |= u8DataEnd;
+#endif
+                }
             }
         } else {        // the signal is in one byte
-            uint8_t uMask = 0xFF >> (8 - nLen);  // get nLen digits of 1
-            u8DataStart &= uMask;
+            u8DataStart &= (0xFF >> (8 - nLen));
             lRet |= u8DataStart;
         }
-        double dFactor = (pRevPackInfo->pPackSig)[i].StcFix.dFactor;
-        double dOffset = (pRevPackInfo->pPackSig)[i].StcFix.dOffset;
-        double dPhyValue = lRet * dFactor + dOffset;
+        
+        double dFactor = pSig[idxSig].StcFix.dFactor;
+        double dOffset = pSig[idxSig].StcFix.dOffset;
+        double dPhyValue = SIGNAL_NAN;
+
+        // 有符号整型补全符号位时要注意，除了有效位其余位均需填充(算术右移)
+        if (DBC_SIGNED == pSig[idxSig].nType) {
+            uint64_t bSign = (lRet >> (nLen - 1)) & 0x01;  // 符号位
+            if (nLen > 32) {
+                uint64_t mask = (bSign == 1 ? 0xFFFFFFFFFFFFFFFF << nLen : 0);
+                dPhyValue = ((int64_t)(lRet | mask )) * dFactor + dOffset;
+            } else if (nLen > 16) {
+                uint32_t mask = (bSign == 1 ? 0xFFFFFFFF << nLen : 0);
+                dPhyValue = ((int32_t)(lRet | mask )) * dFactor + dOffset;
+            } else if (nLen > 8) {
+                uint16_t mask = (bSign == 1 ? 0xFFFF << nLen : 0);
+                dPhyValue = ((int16_t)(lRet | mask )) * dFactor + dOffset;
+            } else {
+                uint8_t mask = (bSign == 1 ? 0xFF << nLen : 0);
+                dPhyValue = ((int8_t)(lRet | mask )) * dFactor + dOffset;
+            }
+        } else if (DBC_UNSIGNED == pSig[idxSig].nType) {
+            dPhyValue = ((uint64_t)lRet) * dFactor + dOffset;
+        } else if (DBC_FLOAT == pSig[idxSig].nType) {
+            void *temp = &lRet;
+            dPhyValue = (*(float *)(temp)) * dFactor + dOffset;
+        } else if (DBC_DOUBLE == pSig[idxSig].nType) {
+            void *temp = &lRet;
+            dPhyValue = (*(double *)(temp)) * dFactor + dOffset;
+        }
 
         Out_Message Msg;
+        Msg.strName = pSig[idxSig].strOutName;
         Msg.dPhyVal = dPhyValue;
-        Msg.strPhyUnit = (pRevPackInfo->pPackSig)[i].strSigUnit;
-        Msg.strPhyFormat = (pRevPackInfo->pPackSig)[i].strSigFormat;
+        Msg.strPhyUnit = pSig[idxSig].strSigUnit;
+        Msg.strPhyFormat = pSig[idxSig].strSigFormat;
         // 写输出信号 map
-        if ((pRevPackInfo->pPackSig)[i].bIsSend) {
+        if (pSig[idxSig].bIsSend) {
             std::lock_guard<std::mutex> lock(g_stu_OutMessage.msg_lock);
-            write_msg_out_map((pRevPackInfo->pPackSig)[i].strOutName, Msg);
+            write_msg_out_map(pSig[idxSig].strOutName, Msg);
         }
         // 写存储信号 map
-        if ((pRevPackInfo->pPackSig)[i].bIsSave) {
+        if (pSig[idxSig].bIsSave) {
             std::lock_guard<std::mutex> lock(g_stu_SaveMessage.msg_lock);
-            write_msg_save_map((pRevPackInfo->pPackSig)[i].strSaveName, Msg);
+            write_msg_save_map(pSig[idxSig].strSaveName, Msg);
         }
 #if 0            
         std::cout << "Channel name = " << ChanName << "  MsgID = " << std::hex << ItrCOM->first << std::endl;
-        std::cout << "i = " << i << ", (pRevPackInfo->pPackSig)[i].strOutName : " << (pRevPackInfo->pPackSig)[i].strOutName;
+        std::cout << "i = " << idxSig << ", pSig[idxSig].strOutName : " << pSig[idxSig].strOutName;
         std::cout << ", dPhyValue = " << dPhyValue << std::endl << std::endl;
 #endif
     }
@@ -269,20 +337,23 @@ int can_ccp_convert2msg(const char *ChanName, uint32_t nCANID, uint8_t *pMsgData
         double dPhyValue = 0.0;
 
         if (pEle->nType == CCP_SIGNED) {
+            uint64_t bSign = (lRet >> (8 * pEle->nLen - 1)) & 0x01;  // 符号位
             if (pEle->nLen == 1) {
-                dPhyValue = (int8_t)lRet * dFactor + dOffest;
+                dPhyValue = (int8_t)(lRet | bSign << 7) * dFactor + dOffest;
             } else if (pEle->nLen == 2) {
-                dPhyValue = (int16_t)lRet * dFactor + dOffest;
+                dPhyValue = (int16_t)(lRet | bSign << 15) * dFactor + dOffest;
             } else if (pEle->nLen == 4) {
-                dPhyValue = (int32_t)lRet * dFactor + dOffest;
-            }            
+                dPhyValue = (int32_t)(lRet | bSign << 31) * dFactor + dOffest;
+            }
         } else if (pEle->nType == CCP_UNSIGNED) {
             dPhyValue = (uint32_t)lRet * dFactor + dOffest;
         } else if (pEle->nType == CCP_FLOAT) {
-            dPhyValue = *(float *)&lRet * dFactor + dOffest;
+            void *temp = &lRet;
+            dPhyValue = (*(float *)(temp)) * dFactor + dOffest;
         }
 
         Out_Message Msg;
+        Msg.strName = pEle->strOutName;
         Msg.dPhyVal = dPhyValue;
         Msg.strPhyUnit = pEle->strElementUnit;
         Msg.strPhyFormat = pEle->strElementFormat;
@@ -306,22 +377,33 @@ int can_ccp_convert2msg(const char *ChanName, uint32_t nCANID, uint8_t *pMsgData
             
 int write_msg_out_map(const std::string strOutName, const Out_Message& MsgOut) {
     if (!strOutName.empty()) {
-        // std::cout << "write signal out" << std::endl;
-        g_stu_OutMessage.msg_struct.msg_map[strOutName] = MsgOut;
-        // g_stu_OutMessage.out_msg[strOutName] = MsgOut;
 
-        // std::cout << "out_msg[" << strOutName << "]: " << MsgOut.fPhyVal << std::endl << std::endl;
+        // LIST_Message::iterator ItrList = g_stu_OutMessage.msg_struct.msg_list.begin();
+        LIST_Message& List = g_stu_OutMessage.msg_struct.msg_list;
+        LIST_Message::iterator ItrList = List.begin();
+
+        for (; ItrList != List.end(); ItrList++) {
+            if (strOutName != (*ItrList).strName) continue;
+            // 修改
+            *ItrList = MsgOut;
+            break;
+        }
     }
+
     return 0;
 }
 
 int write_msg_save_map(const std::string strSaveName, const Out_Message& MsgSave) {
     if (!strSaveName.empty()) {
-        // std::cout << "write signal save" << std::endl;
-        g_stu_SaveMessage.msg_struct.msg_map[strSaveName] = MsgSave;
-        // g_stu_SaveMessage.save_msg[strSaveName] = MsgSave;
+        LIST_Message& List = g_stu_SaveMessage.msg_struct.msg_list;
+        LIST_Message::iterator ItrList = List.begin();
 
-        // std::cout << "save_msg[" << strSaveName << "]: " << MsgSave.fPhyVal << std::endl << std::endl;
+        for (; ItrList != List.end(); ItrList++) {
+            if (strSaveName != (*ItrList).strName) continue;
+            // 修改
+            *ItrList = MsgSave;
+            break;
+        }
     }
     return 0;
 }

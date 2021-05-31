@@ -1,27 +1,24 @@
 #ifndef __CONVERT_DATA_H_
 #define __CONVERT_DATA_H_
 
-#include <map>
 #include <inttypes.h>
 #include <mutex>
 #include <algorithm>
 
+#include <list>
+
 struct Out_Message {
+	std::string strName;
     double dPhyVal;
     std::string strPhyUnit;
     std::string strPhyFormat;
 };
 
-typedef std::map<std::string, Out_Message> MAP_Name_Message;
+typedef std::list<Out_Message> LIST_Message;
 
 struct stu_Message {
 	uint64_t msg_time;
-	MAP_Name_Message msg_map;
-	// stu_Message(const stu_Message& T) {
-	// 	this->msg_time = T.msg_time;
-		// 不可用， std::copy 必须要有 push_back() 方法
-	// 	std::copy(T.msg_map.begin(), T.msg_map.end(), this->msg_map);
-	// }
+	LIST_Message msg_list;
 };
 
 typedef struct {

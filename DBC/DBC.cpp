@@ -49,6 +49,8 @@ int DBC::Init() {
 
 void DBC::Receive_Thread() {
     while (bReceiveThreadRunning) {
+        // 10 ms
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
         // 加锁
         std::lock_guard<std::mutex> lck(g_stu_CAN_UOMAP_ChanName_RcvPk.can_buffer_lock);
         CAN_UOMAP_ChanName_RcvPkg::iterator ItrChan = g_stu_CAN_UOMAP_ChanName_RcvPk.can_buffer.find(pCANInfo.nChanName);
@@ -76,7 +78,7 @@ void DBC::Receive_Thread() {
         // 缓冲区存在需要的 ID
         CANReceive_Buffer RcvTemp = ItrMsgID->second;
 #if 0
-        printf("DBC receive_thread ok!\n");
+        printf("ItrChan->first = %s\n", ItrChan->first.c_str());
         printf("ID: %#X\n", RcvTemp.can_id);
         for (int i = 0; i < RcvTemp.can_dlc; i++) {
             printf("%02X ", (RcvTemp.can_data[i] & 0xFF));

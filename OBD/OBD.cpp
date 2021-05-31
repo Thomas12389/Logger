@@ -91,7 +91,7 @@ int OBD::getAmbientAirTemperture() {
 
 int OBD::send_obd(uint8_t *byteArray) {
 	// Time out to response(ms)
-	int Ms_count = 5000;
+	int Ms_count = 500;
 	// Send
 	nOBDStatus_ = OBD_RSP_PENDING;
 	if (0 != can_send(pCANInfo.nFd, nOBDSendID, nOBDSendLength, byteArray)) {
@@ -99,7 +99,7 @@ int OBD::send_obd(uint8_t *byteArray) {
 	}
 
 	while ((nOBDStatus_ == OBD_RSP_PENDING) && Ms_count) {
-		usleep(100);
+		usleep(1000);
 		--Ms_count;
 	}
 	if (Ms_count <= 0) {
@@ -167,6 +167,8 @@ void OBD::Send_Thread() {
 
 void OBD::Receive_Thread() {
     while (OBD_Run && bReceiveThreadRunning) {
+        // 10 ms
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
         // 加锁
         std::lock_guard<std::mutex> lck(g_stu_CAN_UOMAP_ChanName_RcvPk.can_buffer_lock);
         CAN_UOMAP_ChanName_RcvPkg::iterator ItrChan = g_stu_CAN_UOMAP_ChanName_RcvPk.can_buffer.find(pCANInfo.nChanName);
@@ -195,7 +197,7 @@ void OBD::Receive_Thread() {
         CANReceive_Buffer RcvTemp = ItrMsgID->second;
 
 #if 0
-        printf("DBC receive_thread ok!\n");
+        printf("OBD receive_thread ok!\n");
         printf("ID: %#X\n", RcvTemp.can_id);
         for (int i = 0; i < RcvTemp.can_dlc; i++) {
             printf("%02X ", (RcvTemp.can_data[i] & 0xFF));
@@ -204,9 +206,6 @@ void OBD::Receive_Thread() {
 #endif
         ItrChan->second.erase(ItrMsgID);
         recv_obd(RcvTemp.can_id, RcvTemp.can_dlc, RcvTemp.can_data);
-
-        // 10 ms
-        usleep(10000);
     }
 }
         

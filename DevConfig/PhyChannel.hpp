@@ -6,7 +6,7 @@
 #include "DevConfig/ParseXmlCAN_DBC.hpp"
 #include "DevConfig/ParseXmlCAN_CCP.hpp"
 #include "DevConfig/ParseXmlCAN_OBD.hpp"
-
+#include "DevConfig/ParseXmlInside.hpp"
 
 struct Channel_Info {
 	struct CAN{
@@ -19,6 +19,14 @@ struct Channel_Info {
 
 // Channel 
 typedef std::map<std::string, Channel_Info> Channel_MAP;
+
+struct Inside_Message{
+	uint8_t isEnable;
+	int nNumSigs;
+	Inside_SigStruct* pInsideSig;
+};
+
+typedef std::map<std::string, Inside_Message> Inside_MAP;		// string -- GPS or Internal
 
 // device 
 struct Hardware_Info {

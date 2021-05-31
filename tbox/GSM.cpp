@@ -190,12 +190,12 @@ void* GSMHandleEvents( void *arg)
 						break;
 					case 3:
 						printf( "Above upper temperature alert limit\n");
-						XLOG_WARN("Below lowest temperature limit (immediate GSM switch-off).");
+						XLOG_WARN("Above upper temperature alert limit.");
 						// 蜂鸣器
 						break;
 					case 4:
 						printf( "Above uppermost temperature limit (immediate GSM switch-off)\n");
-						XLOG_WARN("Below lowest temperature limit (immediate GSM switch-off).");
+						XLOG_WARN("Above uppermost temperature limit (immediate GSM switch-off).");
 						// 蜂鸣器
 						break;
 					default:

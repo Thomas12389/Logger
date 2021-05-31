@@ -7,9 +7,10 @@
 #include "datatype.h"
 
 extern Channel_MAP g_Channel_MAP;
+extern Inside_MAP g_Inside_MAP;
 extern stu_OutMessage g_stu_OutMessage;
 // 需要发布的信号名称
-std::vector<std::string> g_out_MsgName;
+// std::vector<std::string> g_out_MsgName;
 
 int map_sigout2sigin(rapidxml::xml_node<> *pMsgOutNodes, int nNumMessages);
 
@@ -54,13 +55,42 @@ int map_sigout2sigin(rapidxml::xml_node<> *pMsgOutNodes, int nNumMessages) {
     }
 
     for (int index = 0; index < nNumMessages; index++) {
-        if (NULL == pMsgNode) break;    // 防止输出 xml 中 nNumMessages 配置错误（比实际多）造成段错误 
+        if (NULL == pMsgNode) break;    // 防止输出 xml 中 nNumMessages 配置错误（比实际多）造成段错误
 
-        // 检查 Channel（如：是 CAN1 或者 CAN2）
         pSubMsgNode = pMsgNode->first_node("Reference");
+
+        // 1. 检查信号源（如： COM、CCP、GPS 等）
+        // 2. 匹配信号
+        char *pSource = pSubMsgNode->first_node("Source")->value();
+        char *pName = pSubMsgNode->first_node("Name")->value();
+        if (0 == strncmp("GPS", pSource, strlen(pSource)) ||
+            0 == strncmp("Internal", pSource, strlen(pSource)) ) {
+
+            Inside_MAP::iterator Itr = g_Inside_MAP.find(pSource);
+            if (Itr == g_Inside_MAP.end()) {
+                pMsgNode = pMsgNode->next_sibling("Message");
+                continue;
+            }
+
+            Inside_SigStruct *pSig = (Itr->second).pInsideSig;
+            for (int Idx = 0; Idx < (Itr->second).nNumSigs; Idx++) {
+                // 根据信号名称查找
+                if (pName != pSig[Idx].strSigName) continue;
+                // 找到对应信号
+                pSig[Idx].bIsSend = 1;
+                pSig[Idx].strOutName = pMsgNode->first_node("MessageName")->value();
+                // printf("pSig[Idx].strOutName : %s, pName : %s\n", pSig[Idx].strOutName.c_str(), pName);
+                // 初始化信号值
+                g_stu_OutMessage.msg_struct.msg_list.push_back({pSig[Idx].strOutName, SIGNAL_NAN, pSig[Idx].strSigUnit, pSig[Idx].strSigFormat});
+                break;
+            }
+        }
+        
+        // 检查 Channel（如：是 CAN1 或者 CAN2）
         pNode = pSubMsgNode->first_node("Channel");
-        // 内置信号，如 GPS 或者 TBox 内部电压、温度等
+        // 内置信号无 Channel 节点，如 GPS 或者 Internal 等, 
         if (NULL == pNode) {
+            pMsgNode = pMsgNode->next_sibling("Message");
             continue;
         }
         char *ChanName = pNode->value();
@@ -73,12 +103,10 @@ int map_sigout2sigin(rapidxml::xml_node<> *pMsgOutNodes, int nNumMessages) {
 
         // 1. 检查信号源（如：是 CAN1 的 COM 还是 CCP）
         // 2. 匹配信号
-        char *pSource = pSubMsgNode->first_node("Source")->value();
-        char *pName = pSubMsgNode->first_node("Name")->value();
         if (0 == strncmp("COM", pSource, strlen(pSource))) {
             COM_MAP_MsgID_RMsgPkg::iterator ItrCOMRcv = (Itr->second).CAN.mapDBC.begin();
             for (; ItrCOMRcv != (Itr->second).CAN.mapDBC.end(); ItrCOMRcv++) {
-                SigStruct *pSig = (ItrCOMRcv->second)->pPackSig;
+                DBC_SigStruct *pSig = (ItrCOMRcv->second)->pPackSig;
 
                 for (int Idx = 0; Idx < (ItrCOMRcv->second)->nNumSigs; Idx++) {
                     // 根据信号名比对，不同则继续比对下一个
@@ -87,10 +115,8 @@ int map_sigout2sigin(rapidxml::xml_node<> *pMsgOutNodes, int nNumMessages) {
 // printf("CAN -- 0x%02X <%d>th signal\n", ItrCOMRcv->first, Idx);                   
                     pSig[Idx].bIsSend = 1;
                     pSig[Idx].strOutName = pMsgNode->first_node("MessageName")->value();
-                    // 按顺序保存需要发布的信号名称
-                    g_out_MsgName.emplace_back(pSig[Idx].strOutName);
                     // 初始化信号值
-                    g_stu_OutMessage.msg_struct.msg_map[pSig[Idx].strOutName] = {SIGNAL_NAN, pSig[Idx].strSigUnit, pSig[Idx].strSigFormat};
+                    g_stu_OutMessage.msg_struct.msg_list.push_back({pSig[Idx].strOutName, SIGNAL_NAN, pSig[Idx].strSigUnit, pSig[Idx].strSigFormat});
                     break;
                 }
             }
@@ -114,20 +140,32 @@ int map_sigout2sigin(rapidxml::xml_node<> *pMsgOutNodes, int nNumMessages) {
 // printf("CCP -- 0x%02X <%ld>th DAQList <%d>th ODT <%d>th Ele\n", (*ItrDAQList).nCANID, std::distance((ItrCCPRcv->second).begin(),ItrDAQList), nIdxODT, nIdxEle);
                             pEle[nIdxEle].bIsSend = 1;
                             pEle[nIdxEle].strOutName = pMsgNode->first_node("MessageName")->value();
-                            // 按顺序保存需要发布的信号名称
-                            g_out_MsgName.emplace_back(pEle[nIdxEle].strOutName);
                             // 初始化信号值
-                            g_stu_OutMessage.msg_struct.msg_map[pEle[nIdxEle].strOutName] = {SIGNAL_NAN, pEle[nIdxEle].strElementUnit, pEle[nIdxEle].strElementFormat};
+                            g_stu_OutMessage.msg_struct.msg_list.push_back({pEle[nIdxEle].strOutName, SIGNAL_NAN, pEle[nIdxEle].strElementUnit, pEle[nIdxEle].strElementFormat});
                             break;
                         }
                     }
                     
                 }
             }
+        } else if (0 == strncmp("OBD", pSource, strlen(pSource))) {
+            g_stu_OutMessage.msg_struct.msg_list.push_back({"EngineCoolantTemperature", SIGNAL_NAN, "°C", ""});
+            g_stu_OutMessage.msg_struct.msg_list.push_back({"EngineRPM", SIGNAL_NAN, "1/min", ""});
+            g_stu_OutMessage.msg_struct.msg_list.push_back({"AbsoluteThrottlePostion", SIGNAL_NAN, "%", ""});
+            g_stu_OutMessage.msg_struct.msg_list.push_back({"AmbientAirTemperature", SIGNAL_NAN, "°C", ""});
+
         }
 
         pMsgNode = pMsgNode->next_sibling("Message");
 
     }
+#if 0
+    LIST_Message::iterator ItrList = g_stu_OutMessage.msg_struct.msg_list.begin();
+    for (; ItrList != g_stu_OutMessage.msg_struct.msg_list.end(); ItrList++) {
+        printf("name : %s, val = %lf, uint : %s\n", (*ItrList).strName.c_str(), (*ItrList).dPhyVal, (*ItrList).strPhyUnit.c_str());
+    }
+    printf("\n");
+#endif
+
     return 0;
 }
