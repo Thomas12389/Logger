@@ -142,7 +142,73 @@ int map_sigsave2sigin(rapidxml::xml_node<> *pMsgSaveNodes, int nNumMessages) {
                     
                 }
             }
+        } 
+#ifndef SELF_OBD
+        else if (0 == strncmp("OBD", pSource, strlen(pSource))) {
+            OBD_MAP_Type_Msg::iterator ItrOBD = (Itr->second).CAN.mapOBD.find("OBD");
+            // 不存在 OBD 信号
+            if (ItrOBD == (Itr->second).CAN.mapOBD.end()) {
+                pMsgNode = pMsgNode->next_sibling("Message");
+                continue;
+            }
+
+            OBD_SigStruct *pSig = (ItrOBD->second)->pOBDSig;
+            for (int Idx = 0; Idx < (ItrOBD->second)->nNumSigs; Idx++) {
+                // 根据信号名称查找
+                if (pName != pSig[Idx].strSigName) continue;
+                // 找到对应信号
+                pSig[Idx].bIsSave = 1;
+                pSig[Idx].strSaveName = pMsgNode->first_node("MessageName")->value();
+                // printf("pSig[Idx].strSaveName : %s, pName : %s\n", pSig[Idx].strSaveName.c_str(), pName);
+                // 初始化信号值
+                g_stu_SaveMessage.msg_struct.msg_list.push_back({pSig[Idx].strSaveName, SIGNAL_NAN, pSig[Idx].strSigUnit, pSig[Idx].strSigFormat});
+                break;
+            }
+
+        } else if (0 == strncmp("WWHOBD", pSource, strlen(pSource))) {
+            OBD_MAP_Type_Msg::iterator ItrOBD = (Itr->second).CAN.mapOBD.find("WWHOBD");
+            // 不存在 WWHOBD 信号
+            if (ItrOBD == (Itr->second).CAN.mapOBD.end()) {
+                pMsgNode = pMsgNode->next_sibling("Message");
+                continue;
+            }
+
+            OBD_SigStruct *pSig = (ItrOBD->second)->pOBDSig;
+            for (int Idx = 0; Idx < (ItrOBD->second)->nNumSigs; Idx++) {
+                // 根据信号名称查找
+                if (pName != pSig[Idx].strSigName) continue;
+                // 找到对应信号
+                pSig[Idx].bIsSave = 1;
+                pSig[Idx].strSaveName = pMsgNode->first_node("MessageName")->value();
+                // printf("pSig[Idx].strSaveName : %s, pName : %s\n", pSig[Idx].strSaveName.c_str(), pName);
+                // 初始化信号值
+                g_stu_SaveMessage.msg_struct.msg_list.push_back({pSig[Idx].strSaveName, SIGNAL_NAN, pSig[Idx].strSigUnit, pSig[Idx].strSigFormat});
+                break;
+            }
+
+        } else if (0 == strncmp("J1939", pSource, strlen(pSource))) {
+            OBD_MAP_Type_Msg::iterator ItrOBD = (Itr->second).CAN.mapOBD.find("J1939");
+            // 不存在 J1939 信号
+            if (ItrOBD == (Itr->second).CAN.mapOBD.end()) {
+                pMsgNode = pMsgNode->next_sibling("Message");
+                continue;
+            }
+
+            OBD_SigStruct *pSig = (ItrOBD->second)->pOBDSig;
+            for (int Idx = 0; Idx < (ItrOBD->second)->nNumSigs; Idx++) {
+                // 根据信号名称查找
+                if (pName != pSig[Idx].strSigName) continue;
+                // 找到对应信号
+                pSig[Idx].bIsSave = 1;
+                pSig[Idx].strSaveName = pMsgNode->first_node("MessageName")->value();
+                // printf("pSig[Idx].strSaveName : %s, pName : %s\n", pSig[Idx].strSaveName.c_str(), pName);
+                // 初始化信号值
+                g_stu_SaveMessage.msg_struct.msg_list.push_back({pSig[Idx].strSaveName, SIGNAL_NAN, pSig[Idx].strSigUnit, pSig[Idx].strSigFormat});
+                break;
+            }
+
         }
+#endif
 
         pMsgNode = pMsgNode->next_sibling("Message");
 

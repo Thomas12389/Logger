@@ -5,12 +5,12 @@
 
 #include <inttypes.h>
 	
+#include "owa4x/INET_ModuleDefs.h" 
 #include "owa4x/GSM_ModuleDefs.h"
 #include "owa4x/pm_messages.h"
 #include "owa4x/IOs_ModuleDefs.h"
 #include "owa4x/RTUControlDefs.h"
 #include "owa4x/owerrors.h"
-#include "owa4x/INET_ModuleDefs.h" 
 
 #define COLOR(a, b)		"\033[" #a "m" b "\033[0m"
 

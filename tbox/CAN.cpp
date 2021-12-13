@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include <iostream>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -28,6 +29,8 @@
 static CAN_CHOOSE g_stCanChoose;		//结构体，存储CAN使用情况
 static char set_shell[100];	//存储要执行的shell命令
 
+// CAN 各协议 ID
+mapID_Register g_mapID_Register;
 // CAN 消息全局缓冲区
 stu_CAN_UOMAP_ChanName_RcvPkg g_stu_CAN_UOMAP_ChanName_RcvPk;
 
@@ -60,7 +63,14 @@ int can_setting(int nChan, int nBuardRate) {
 
 	// set bitrate
 	memset((void *)set_shell, 0, sizeof(set_shell));
-	sprintf(set_shell,"ip link set can%c type can bitrate %d",(char)(nChan + '0'), nBuardRate);
+	sprintf(set_shell,"ip link set can%c type can bitrate %d", (char)(nChan + '0'), nBuardRate);
+#ifdef CANFD // TODO
+	sprintf(set_shell, " dbitrate %d");
+#endif
+	system(set_shell);
+
+	memset((void *)set_shell, 0, sizeof(set_shell));
+	sprintf(set_shell, "ip link set can%c type can restart-ms 10", (char)(nChan + '0'));
 	system(set_shell);
 
 	// set up
@@ -80,7 +90,12 @@ int socket_can_init(const char *strNameCAN) {
 	memset(&ifr, 0, sizeof(struct ifreq));
 
 	//socket can
-	if ((can_fd = socket(PF_CAN, SOCK_RAW, CAN_RAW)) < 0) {
+	int protocol = CAN_RAW;
+	// TODO: 是否为 CAN_FD
+#ifdef CANFD
+		protocol = CAN_RAW_FD_FRAMES;
+#endif
+	if ((can_fd = socket(PF_CAN, SOCK_RAW, protocol)) < 0) {
 		perror("socket");
 		return -1;
 	}
@@ -114,21 +129,92 @@ void *can_receive_thread(void *arg) {
 	char strChannelName[10] = {0};
 	strUpLowTrans(strChannelName, can_info->nChanName, LETTER_CASE::UPPER);
 
+	// 记录 ID 与 FIFO 的对应关系
+	std::map<uint32_t, std::vector<int> > mapID_WFD;
+	mapID_Register::iterator ItrReg = g_mapID_Register.find(strChannelName);
+	if (ItrReg == g_mapID_Register.end()) {
+		pthread_exit(NULL);
+	}
+	// 根据注册信息提取 ID 与 fifo 写端 fd 的对应关系
+	mapProtype_IDs::iterator ItrPro = ItrReg->second.begin();
+	for (; ItrPro != ItrReg->second.end(); ItrPro++) {
+		std::vector<RegInfo>::iterator Itrvec = ItrPro->second.begin();
+		// 保存 ID 与写端 fd 对应关系
+		for (; Itrvec != ItrPro->second.end(); Itrvec++) {
+			// 打开对应 FIFO
+			int w_fd = open((*Itrvec).fifo_path.c_str(), O_WRONLY);
+			if (w_fd < 0) {
+				XLOG_ERROR("ERROR {} with {}, {}", strChannelName, protocol_enum_to_string(ItrPro->first), strerror(errno));
+				continue;
+			}
+
+			std::vector<uint32_t>::iterator ItrId = (*Itrvec).reg_ids.begin();
+			for (; ItrId != (*Itrvec).reg_ids.end(); ItrId++) {
+				mapID_WFD[*ItrId].push_back(w_fd);
+			}
+		}
+	}
+
+#if 0
+	// 打印该通道 ID 与 w_fd 的对应情况
+	std::map<uint32_t, std::vector<int> >::iterator Itr = mapID_WFD.begin();
+    for (; Itr != mapID_WFD.end(); Itr++) {
+        std::cout << strChannelName << " " << Itr->first << std::endl;
+        std::vector<int>::iterator Itrvec = Itr->second.begin();
+        std::cout << "  ";
+        for (; Itrvec != Itr->second.end(); Itrvec++) {
+            std::cout << *Itrvec << " ";
+        }
+        std::cout << std::endl;
+    }
+#endif
+
+	while (1) {
+		// Receive packet	
+		// while(nbytes = read(can_fd, &canMessage, CANFD_MTU), nbytes == -1) {
+		// 	std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		// }
+		nbytes = read(can_fd, &canMessage, CANFD_MTU);
+		// printf("nbytes = %" PRId32 ", time: %" PRIu64 "\n", nbytes, getTimestamp(TIME_STAMP::MS_STAMP));
+		if (nbytes != CAN_MTU && nbytes != CANFD_MTU) continue;
+
+		mapID_Register::iterator ItrChan = g_mapID_Register.find(strChannelName);
+		if (ItrChan == g_mapID_Register.end()) continue;
+
+		CANReceive_Buffer RcvTemp;
+		RcvTemp.can_id = canMessage.can_id;
+		RcvTemp.can_dlc = canMessage.can_dlc;
+		memcpy(RcvTemp.can_data, canMessage.data, sizeof(canMessage.data));
+
+		// 查找 ID
+		std::map<uint32_t, std::vector<int> >::iterator Itr = mapID_WFD.find(RcvTemp.can_id);
+		if (Itr == mapID_WFD.end()) {
+			continue;
+		}
+		
+		// 根据注册情况路由到对应的 fifo
+		std::vector<int>::iterator Itrvec = Itr->second.begin();
+		for (; Itrvec != Itr->second.end(); Itrvec++) {
+			write((*Itrvec), &RcvTemp, sizeof(RcvTemp));
+
+		}
+
+	}
+
+#if 0
 	while(1) {
 		// Receive packet	
-		nbytes = read(can_fd, &canMessage, sizeof(canMessage));
-		while(nbytes == -1) {
+		while(nbytes = read(can_fd, &canMessage, CANFD_MTU), nbytes == -1) {
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
-			nbytes = read(can_fd, &canMessage, sizeof(canMessage));	
 		}
-#if 0
+	#if 0
 		printf("\n%s(%d) receive   ", strChannelName, can_fd);
 		printf("0x%02X    ", canMessage.can_id);
 		for (int i = 0; i < canMessage.can_dlc; i++) {
 			printf("%02X ", canMessage.data[i]);
 		}
 		printf("\n");
-#endif
+	#endif
 		Channel_MAP::iterator ItrChan = g_Channel_MAP.find(strChannelName);
 		if (ItrChan == g_Channel_MAP.end()) continue;
 
@@ -141,28 +227,28 @@ void *can_receive_thread(void *arg) {
 
 		do {
 			// 检测是否有错误帧
-			uint32_t can_err_flags = RcvTemp.can_id & CAN_ERR_FLAG;
-			if (can_err_flags) {	// 接收到错误帧
-				char temp_can_channel[10] = {0};
-				strUpLowTrans(temp_can_channel, strChannelName, LETTER_CASE::LOWER);
-				switch (can_err_flags) {
-					// TODO: 各种错误检测记录
-					case CAN_ERR_BUSOFF:
-					case CAN_ERR_BUSERROR:
-						memset((void *)set_shell, 0, sizeof(set_shell));
-						sprintf(set_shell, "ip link set %s type can restart", temp_can_channel);
-						system(set_shell);
-						XLOG_WARN("{} restart.", temp_can_channel);
-						break;
-					case CAN_ERR_RESTARTED:
-						XLOG_WARN("{} restart.", temp_can_channel);
-						break;
-					default: 
-						XLOG_WARN("{} received Error frame.", temp_can_channel);
-						break;
-				}
-				break;
-			}
+			// uint32_t can_err_flags = RcvTemp.can_id & CAN_ERR_FLAG;
+			// if (can_err_flags) {	// 接收到错误帧
+			// 	char temp_can_channel[10] = {0};
+			// 	strUpLowTrans(temp_can_channel, strChannelName, LETTER_CASE::LOWER);
+			// 	switch (can_err_flags) {
+			// 		// TODO: 各种错误检测记录
+			// 		case CAN_ERR_BUSOFF:
+			// 		case CAN_ERR_BUSERROR:
+			// 			memset((void *)set_shell, 0, sizeof(set_shell));
+			// 			sprintf(set_shell, "ip link set %s type can restart", temp_can_channel);
+			// 			system(set_shell);
+			// 			XLOG_WARN("{} restart.", temp_can_channel);
+			// 			break;
+			// 		case CAN_ERR_RESTARTED:
+			// 			XLOG_WARN("{} restart.", temp_can_channel);
+			// 			break;
+			// 		default: 
+			// 			XLOG_WARN("{} received Error frame.", temp_can_channel);
+			// 			break;
+			// 	}
+			// 	break;
+			// }
 
 			// 存入全局缓冲区
 			std::lock_guard<std::mutex> lck(g_stu_CAN_UOMAP_ChanName_RcvPk.can_buffer_lock);	
@@ -178,8 +264,8 @@ void *can_receive_thread(void *arg) {
 		} while(0);
 		// Packet for receiving
 		memset(&canMessage, 0, sizeof(canMessage));
-
 	}
+#endif
 
 }
 
@@ -319,10 +405,7 @@ int Can_Start(void) {
 					vecCCP[i] = new CCP_TEST(*info, Itr->first);
 					
 					if (0 == vecCCP[i]->Init()) {
-						// int ret = vecCCP[i]->DAQList_Initialization();
-    					// if (-1 == ret) {
-        				// 	XLOG_INFO("CAN2 DAQList_Initialization ERROR.");
-    					// }
+
 					}
 					Itr++;
 				}
@@ -330,14 +413,37 @@ int Can_Start(void) {
 
 			if (!ItrChan->second.CAN.mapOBD.empty()) {
 				OBD *objOBD = new OBD(std::move(*info));
+#ifdef SELF_OBD
 				if(0 == objOBD->Init()) {
 
 				}
+#else
 
+#endif
 			}
 
 		}
 	}
+
+#if 1
+	// 打印通道的注册情况
+	mapID_Register::iterator Itr = g_mapID_Register.begin();
+	for (; Itr != g_mapID_Register.end(); Itr++) {
+		printf("channelname: %s\n", Itr->first.c_str());
+		for (auto Itr2 = Itr->second.begin(); Itr2 != Itr->second.end(); Itr2++) {
+			printf("\tpro_type: %d\n", Itr2->first);
+			printf("\t\t");
+			for (auto Itr3 = Itr2->second.begin(); Itr3 != Itr2->second.end(); Itr3++) {
+				printf("fifo_path: %s\t", (*Itr3).fifo_path.c_str());
+				for (auto ItrID = (*Itr3).reg_ids.begin(); ItrID != (*Itr3).reg_ids.end(); ItrID++) {
+					printf("%#X ", *ItrID);
+				}
+			}
+			printf("\n");
+		}
+	}
+	printf("\n");
+#endif
 		
 	printf("---------------TBox--> Can Module Setting Finish!---------------\n");
 	XLOG_INFO("Can Module initialized & started finished.");
@@ -359,4 +465,45 @@ void Can_Stop(void) {
 		}
 	}
 	Can_Enable(DISABLE_CAN);
+}
+
+
+int can_register(std::string chn_name, protocol_type type, RegInfo reginfo) {
+
+    mapID_Register::iterator Itr = g_mapID_Register.find(chn_name);
+	if (Itr == g_mapID_Register.end()) {
+		mapProtype_IDs temp;
+		temp[type].push_back(reginfo);
+		g_mapID_Register[chn_name] = temp;
+	} else {
+		Itr->second[type].push_back(reginfo);
+	}
+
+	return 0;
+}
+
+const char* protocol_enum_to_string(protocol_type type) {
+	switch (type) {
+		case protocol_type::PRO_DBC: {
+			return "DBC";
+		}
+		case protocol_type::PRO_CCP: {
+			return "CCP";
+		}
+		case protocol_type::PRO_OBD: {
+			return "OBD";
+		}
+		case protocol_type::PRO_WWHOBD: {
+			return "WWHOBD";
+		}
+		case protocol_type::PRO_J1939: {
+			return "J1939";
+		}
+		case protocol_type::PRO_UDS: {/*  */
+			return "UDS";
+		}
+	
+		default:
+			return "";
+	}
 }

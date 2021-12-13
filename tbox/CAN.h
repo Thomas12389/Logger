@@ -2,6 +2,7 @@
 #ifndef __CAN_H_
 #define __CAN_H_
 
+#include <map>
 #include <unordered_map>
 #include <vector>
 #include <mutex>
@@ -34,15 +35,33 @@ struct canInfo {
 	char *nChanName;
 };
 
+// 协议类型
+enum protocol_type : uint8_t {
+	PRO_DBC = 0x01,
+	PRO_CCP = 0x02,
+	PRO_OBD = 0x03,
+	PRO_WWHOBD = 0x04,
+	PRO_J1939 = 0x05,
+	PRO_UDS = 0x06,
+};
+
+// ID 注册
+struct RegInfo{
+	std::string fifo_path;
+	std::vector<uint32_t> reg_ids;
+};
+typedef std::map<protocol_type, std::vector<RegInfo> > mapProtype_IDs;
+typedef std::map<std::string, mapProtype_IDs> mapID_Register;
+
 // CAN 接收缓冲区
 struct CANReceive_Buffer {
 	// uint64_t rcv_timestamp;
-	uint32_t	can_id;
+	uint32_t	can_id;		/* 32 bit CAN_ID + EFF/RTR/ERR flags */
 	uint8_t		can_dlc;
-	uint8_t		__pad;   /* padding */
-	uint8_t		__res0;  /* reserved / padding */
-	uint8_t		__res1;  /* reserved / padding */
-	uint8_t		can_data[8] __attribute__((aligned(8)));
+	uint8_t		flags;		/* only for CANFD */
+	uint8_t		__res0;		/* reserved / padding */
+	uint8_t		__res1;		/* reserved / padding */
+	uint8_t		can_data[64] __attribute__((aligned(8)));
 };
 
 typedef std::unordered_map<uint32_t, CANReceive_Buffer> CAN_UOMAP_MsgID_Buffer;
@@ -59,6 +78,10 @@ int Can_Start(void);
 void Can_Stop(void);
 
 int can_send(int nFd, uint32_t id, uint8_t len, uint8_t *byteArray);
+
+int can_register(std::string chn_name, protocol_type type, RegInfo reginfo);
+
+const char* protocol_enum_to_string(protocol_type type);
 	
 #endif
 

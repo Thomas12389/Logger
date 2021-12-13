@@ -38,8 +38,8 @@ void XLogger::InitXLogger(std::string log_file_name, int log_level, bool is_cons
 	// logger name with timestamp
 	const std::string logger_name = logger_name_prefix + '_' + log_file_name + ".log";
 	const std::string log_path = log_dir + logger_name;
-	// 输出重定向
-	// freopen(log_path.c_str(), "a+", stdout);
+	// 输出重定向, for debug
+	freopen(log_path.c_str(), "a+", stdout);
 
 	try {
 		m_logger = spdlog::create_async<spdlog::sinks::rotating_file_sink_mt>(logger_name, log_path, 5 * 1024 * 1024, 3); // multi part log files, with every part 5M, max 3 files

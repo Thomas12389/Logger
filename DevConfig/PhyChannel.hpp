@@ -13,7 +13,11 @@ struct Channel_Info {
 		CAN_BuardRate stuBuardRate;
 		COM_MAP_MsgID_RMsgPkg mapDBC;
 		CCP_MAP_Salve_DAQList mapCCP;
+#ifdef SELF_OBD
 		OBD_MAP_MsgID_RMsgPkg mapOBD;
+#else
+		OBD_MAP_Type_Msg mapOBD;
+#endif
 	} CAN;
 };
 

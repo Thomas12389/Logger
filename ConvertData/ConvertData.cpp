@@ -16,6 +16,7 @@ extern Channel_MAP g_Channel_MAP;
 stu_OutMessage g_stu_OutMessage;
 stu_SaveMessage g_stu_SaveMessage;
 
+#ifdef SELF_OBD
 int can_obd_convert2msg(const char *ChanName, uint32_t nCANID, uint8_t *pMsgData) {
 
     if (NULL == ChanName) {
@@ -67,6 +68,7 @@ int can_obd_convert2msg(const char *ChanName, uint32_t nCANID, uint8_t *pMsgData
         return -1;
     }
 
+    if (!pOBD_SubFunc[nIdxSubFunc].bIsSave && !pOBD_SubFunc[nIdxSubFunc].bIsSend) return 0;
     // convert data
     uint8_t eff_len = pMsgData[0] - 2;  // 数据有效长度，减去 functionID 和 subfunctionID 所占字节
     int64_t lRet = 0;
@@ -101,6 +103,7 @@ int can_obd_convert2msg(const char *ChanName, uint32_t nCANID, uint8_t *pMsgData
 
     return 0;    
 }
+#endif
 
 int can_dbc_convert2msg(const char *ChanName, uint32_t nCANID, uint8_t *pMsgData) {
     if (NULL == ChanName) {
@@ -125,6 +128,9 @@ int can_dbc_convert2msg(const char *ChanName, uint32_t nCANID, uint8_t *pMsgData
     // convert data
     DBC_SigStruct *pSig = pRevPackInfo->pPackSig;
     for (int idxSig = 0; idxSig < pRevPackInfo->nNumSigs; idxSig++) {
+        // 该信号不上传不保存，则不进行解析
+        if (!pSig[idxSig].bIsSave && !pSig[idxSig].bIsSend) continue;
+
         uint64_t lRet = 0;
         DBC_ByteOrder nOrder = pSig[idxSig].nByteOrder;
         int nLen = pSig[idxSig].nLen;    // get the signal length
@@ -308,6 +314,7 @@ int can_ccp_convert2msg(const char *ChanName, uint32_t nCANID, uint8_t *pMsgData
     uint8_t nUsedLen = 1;      // 已经使用的字节数， PID 占一字节
     for (int idxEle = 0; idxEle < pODT[nIdxODT].nNumElements; idxEle++) {
         pEle = pEle + idxEle;       // 遍历到第几个 Element
+        if (!pEle->bIsSave && !pEle->bIsSend) continue;
         
         int nStartByte = nUsedLen;      // 从第几个字节开始
         int nEndByte = nStartByte + pEle->nLen - 1;     // 到第几个字节结束

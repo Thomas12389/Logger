@@ -1,4 +1,6 @@
 
+#include "tbox/Common.h"
+
 #include "DevConfig/ParseConfiguration.h"
 #include "DevConfig/ParseXmlCAN.hpp"
 #include "DevConfig/ParseXmlMQTT.hpp"
@@ -48,7 +50,11 @@ int parse_configuration(const char *pPath, const std::string strDate) {
     rapidxml::xml_node<> *pNode = pRoot->first_node("FlagsModel");
     // rapidxml::xml_node<> *pSubNode = pNode->first_node("Serial_Number");
     // g_Hardware_Info.SeqNum = pSubNode->value();
-    g_Hardware_Info.SeqNum = "Logger_00888";
+    g_Hardware_Info.SeqNum = "Logger_";
+    uint8_t serial_num[7] = {0};
+    GetSerialNumber(serial_num);
+    std::string str_serial((char *)serial_num);
+    g_Hardware_Info.SeqNum += str_serial;
 
     // 解析 GPS 信号
     pNode = pRoot->first_node("GPS");

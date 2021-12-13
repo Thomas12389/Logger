@@ -46,6 +46,7 @@ int parse_xml_can_channel(rapidxml::xml_node<> *pChannelNodes, int nNumChannels)
             int nPacks = atoi(pNode->first_attribute("num")->value());
             parse_xml_dbc_package(pNode, ChanName, nPacks);
         }
+
         pNode = pChannel->first_node("CCP");
         if (NULL != pNode) {
             // 目前只支持一个
@@ -54,10 +55,23 @@ int parse_xml_can_channel(rapidxml::xml_node<> *pChannelNodes, int nNumChannels)
             parse_xml_ccp_salve(pNode, ChanName, nSalves);
         }
 
+#ifndef SELF_OBD
+        pNode = pChannel->first_node("OBD");
+        if (NULL == pNode) {
+            pNode = pChannel->first_node("WWHOBD");
+            if (NULL == pNode) {
+                pNode = pChannel->first_node("J1939");
+            }
+        }
+        if (NULL != pNode) {
+            int nNumSignal = atoi(pNode->first_attribute("num")->value());
+            parse_xml_obd(pNode, ChanName, pNode->name(), nNumSignal);
+        }
+#else
         // TODO: CAN OBD
         static int num_package = 1; // 从配置读取
         parse_xml_obd(ChanName, num_package);
-    
+#endif    
         pChannel = pChannel->next_sibling("Channel");
     }
 

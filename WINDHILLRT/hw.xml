@@ -7,13 +7,17 @@
   </FlagsModel>
   
   <CAN>
+    <NumModel>
+		<NumChannels>2</NumChannels>
+		<NumSignals>12</NumSignals>
+	</NumModel>
 	<Channels num = "2">
 		<Channel name = "CAN1">
 			<ChannelID>0</ChannelID>
 			<ChannelType>CAN</ChannelType>
 			<CAN_Rate>500000</CAN_Rate>
 			<CANFD_Data_Rate>2000000</CANFD_Data_Rate>
-			<COM num="2">
+			<COM num="10">
 				<Package>
 					<ID>0x0A</ID>
 					<FDF>0</FDF>
@@ -21,52 +25,446 @@
 					<NumSignals>4</NumSignals>
 					<Signals>
 						<Signal>
-							<Name>C_56702492_1</Name>
-							<Unit>V</Unit>
-							<StartBit>1</StartBit>
-							<Length>9</Length>
+							<Name>C_56601399_1</Name>
+							<Unit>°C</Unit>
+							<StartBit>0</StartBit>
+							<Length>16</Length>
 							<ByteOrder>1</ByteOrder>
-							<Type>SIGNED</Type>
-							<SignalFactor>0.0305180437933928</SignalFactor>
-							<SignalOffset>-1000</SignalOffset>
-						</Signal>
-						<Signal>
-							<Name>C_56702492_2</Name>
-							<Unit>A</Unit>
-							<StartBit>46</StartBit>
-							<Length>16</Length>
-							<ByteOrder>0</ByteOrder>
 							<Type>UNSIGNED</Type>
-							<SignalFactor>0.0228885328450446</SignalFactor>
-							<SignalOffset>-750</SignalOffset>
+							<SignalFactor>0.0218204013122759</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
 						</Signal>
 						<Signal>
-							<Name>C_56702492_3</Name>
-							<Unit>G</Unit>
-							<StartBit>57</StartBit>
+							<Name>C_56601399_2</Name>
+							<Unit>°C</Unit>
+							<StartBit>16</StartBit>
 							<Length>16</Length>
-							<ByteOrder>0</ByteOrder>
-							<Type>SIGNED</Type>
-							<SignalFactor>1</SignalFactor>
-							<SignalOffset>0</SignalOffset>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>0.0218204013122759</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>C_56601399_3</Name>
+							<Unit>°C</Unit>
+							<StartBit>32</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>0.0218204013122759</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>C_56601399_4</Name>
+							<Unit>°C</Unit>
+							<StartBit>48</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>0.0218204013122759</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
 						</Signal>
 					</Signals>
 				</Package>
 				<Package>
 					<ID>0x0B</ID>
 					<FDF>0</FDF>
-					<Datalength>8</Datalength>
+					<Datalength>2</Datalength>
 					<NumSignals>1</NumSignals>
 					<Signals>
 						<Signal>
 							<Name>C_56702492_8</Name>
-							<Unit>DD</Unit>
+							<Unit>A</Unit>
 							<StartBit>0</StartBit>
-							<Length>64</Length>
+							<Length>16</Length>
 							<ByteOrder>1</ByteOrder>
-							<Type>DOUBLE</Type>
+							<Type>UNSIGNED</Type>
 							<SignalFactor>0.00152590218966964</SignalFactor>
 							<SignalOffset>-50</SignalOffset>
+						</Signal>
+					</Signals>
+				</Package>
+				<Package>
+					<ID>0x0C</ID>
+					<FDF>0</FDF>
+					<Datalength>8</Datalength>
+					<NumSignals>4</NumSignals>
+					<Signals>
+						<Signal>
+							<Name>C__1</Name>
+							<Unit>°C</Unit>
+							<StartBit>0</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>C__2</Name>
+							<Unit>°C</Unit>
+							<StartBit>16</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>C__3</Name>
+							<Unit>°C</Unit>
+							<StartBit>32</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>C__4</Name>
+							<Unit>°C</Unit>
+							<StartBit>48</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+					</Signals>
+				</Package>
+				<Package>
+					<ID>0x0D</ID>
+					<FDF>0</FDF>
+					<Datalength>8</Datalength>
+					<NumSignals>4</NumSignals>
+					<Signals>
+						<Signal>
+							<Name>D__1</Name>
+							<Unit>°C</Unit>
+							<StartBit>0</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>D__2</Name>
+							<Unit>°C</Unit>
+							<StartBit>16</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>D__3</Name>
+							<Unit>°C</Unit>
+							<StartBit>32</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>D__4</Name>
+							<Unit>°C</Unit>
+							<StartBit>48</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+					</Signals>
+				</Package>
+				<Package>
+					<ID>0x0E</ID>
+					<FDF>0</FDF>
+					<Datalength>8</Datalength>
+					<NumSignals>4</NumSignals>
+					<Signals>
+						<Signal>
+							<Name>E__1</Name>
+							<Unit>°C</Unit>
+							<StartBit>0</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>E__2</Name>
+							<Unit>°C</Unit>
+							<StartBit>16</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>E__3</Name>
+							<Unit>°C</Unit>
+							<StartBit>32</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>E__4</Name>
+							<Unit>°C</Unit>
+							<StartBit>48</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+					</Signals>
+				</Package>
+				<Package>
+					<ID>0x0F</ID>
+					<FDF>0</FDF>
+					<Datalength>8</Datalength>
+					<NumSignals>4</NumSignals>
+					<Signals>
+						<Signal>
+							<Name>F__1</Name>
+							<Unit>°C</Unit>
+							<StartBit>0</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>F__2</Name>
+							<Unit>°C</Unit>
+							<StartBit>16</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>F__3</Name>
+							<Unit>°C</Unit>
+							<StartBit>32</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>F__4</Name>
+							<Unit>°C</Unit>
+							<StartBit>48</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+					</Signals>
+				</Package>
+				<Package>
+					<ID>0x10</ID>
+					<FDF>0</FDF>
+					<Datalength>8</Datalength>
+					<NumSignals>4</NumSignals>
+					<Signals>
+						<Signal>
+							<Name>10__1</Name>
+							<Unit>°C</Unit>
+							<StartBit>0</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>10__2</Name>
+							<Unit>°C</Unit>
+							<StartBit>16</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>10__3</Name>
+							<Unit>°C</Unit>
+							<StartBit>32</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>10__4</Name>
+							<Unit>°C</Unit>
+							<StartBit>48</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+					</Signals>
+				</Package>
+				<Package>
+					<ID>0x11</ID>
+					<FDF>0</FDF>
+					<Datalength>8</Datalength>
+					<NumSignals>4</NumSignals>
+					<Signals>
+						<Signal>
+							<Name>11__1</Name>
+							<Unit>°C</Unit>
+							<StartBit>0</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>11__2</Name>
+							<Unit>°C</Unit>
+							<StartBit>16</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>11__3</Name>
+							<Unit>°C</Unit>
+							<StartBit>32</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>11__4</Name>
+							<Unit>°C</Unit>
+							<StartBit>48</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+					</Signals>
+				</Package>
+				<Package>
+					<ID>0x12</ID>
+					<FDF>0</FDF>
+					<Datalength>8</Datalength>
+					<NumSignals>4</NumSignals>
+					<Signals>
+						<Signal>
+							<Name>12__1</Name>
+							<Unit>°C</Unit>
+							<StartBit>0</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>12__2</Name>
+							<Unit>°C</Unit>
+							<StartBit>16</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>12__3</Name>
+							<Unit>°C</Unit>
+							<StartBit>32</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>12__4</Name>
+							<Unit>°C</Unit>
+							<StartBit>48</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+					</Signals>
+				</Package>
+				<Package>
+					<ID>0x13</ID>
+					<FDF>0</FDF>
+					<Datalength>8</Datalength>
+					<NumSignals>4</NumSignals>
+					<Signals>
+						<Signal>
+							<Name>13__1</Name>
+							<Unit>°C</Unit>
+							<StartBit>0</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>13__2</Name>
+							<Unit>°C</Unit>
+							<StartBit>16</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>13__3</Name>
+							<Unit>°C</Unit>
+							<StartBit>32</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>13__4</Name>
+							<Unit>°C</Unit>
+							<StartBit>48</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>1</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
 						</Signal>
 					</Signals>
 				</Package>
@@ -79,20 +477,50 @@
 			<CANFD_Data_Rate>2000000</CANFD_Data_Rate>
 			<COM num="3">
 				<Package>
-					<ID>0x00A</ID>
+					<ID>0x0A</ID>
 					<FDF>0</FDF>
-					<Datalength>4</Datalength>
-					<NumSignals>1</NumSignals>
+					<Datalength>8</Datalength>
+					<NumSignals>4</NumSignals>
 					<Signals>
 						<Signal>
-							<Name>C_56105666_1</Name>
-							<Unit>V</Unit>
+							<Name>C_56601399_1</Name>
+							<Unit>°C</Unit>
 							<StartBit>0</StartBit>
 							<Length>16</Length>
 							<ByteOrder>1</ByteOrder>
-							<Type>SIGNED</Type>
-							<SignalFactor>0.00305180437933928</SignalFactor>
-							<SignalOffset>-100</SignalOffset>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>0.0218204013122759</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>C_56601399_2</Name>
+							<Unit>°C</Unit>
+							<StartBit>16</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>0.0218204013122759</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>C_56601399_3</Name>
+							<Unit>°C</Unit>
+							<StartBit>32</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>0.0218204013122759</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
+						</Signal>
+						<Signal>
+							<Name>C_56601399_4</Name>
+							<Unit>°C</Unit>
+							<StartBit>48</StartBit>
+							<Length>16</Length>
+							<ByteOrder>1</ByteOrder>
+							<Type>UNSIGNED</Type>
+							<SignalFactor>0.0218204013122759</SignalFactor>
+							<SignalOffset>-60</SignalOffset>
 						</Signal>
 					</Signals>
 				</Package>
@@ -108,7 +536,7 @@
 							<StartBit>0</StartBit>
 							<Length>16</Length>
 							<ByteOrder>1</ByteOrder>
-							<Type>SIGNED</Type>
+							<Type>UNSIGNED</Type>
 							<SignalFactor>0.0218204013122759</SignalFactor>
 							<SignalOffset>-60</SignalOffset>
 						</Signal>
@@ -118,7 +546,7 @@
 							<StartBit>16</StartBit>
 							<Length>16</Length>
 							<ByteOrder>1</ByteOrder>
-							<Type>SIGNED</Type>
+							<Type>UNSIGNED</Type>
 							<SignalFactor>0.0218204013122759</SignalFactor>
 							<SignalOffset>-60</SignalOffset>
 						</Signal>
@@ -128,7 +556,7 @@
 							<StartBit>32</StartBit>
 							<Length>16</Length>
 							<ByteOrder>1</ByteOrder>
-							<Type>SIGNED</Type>
+							<Type>UNSIGNED</Type>
 							<SignalFactor>0.0218204013122759</SignalFactor>
 							<SignalOffset>-60</SignalOffset>
 						</Signal>
@@ -138,7 +566,7 @@
 							<StartBit>48</StartBit>
 							<Length>16</Length>
 							<ByteOrder>1</ByteOrder>
-							<Type>SIGNED</Type>
+							<Type>UNSIGNED</Type>
 							<SignalFactor>0.0218204013122759</SignalFactor>
 							<SignalOffset>-60</SignalOffset>
 						</Signal>
@@ -156,7 +584,7 @@
 							<StartBit>0</StartBit>
 							<Length>16</Length>
 							<ByteOrder>1</ByteOrder>
-							<Type>SIGNED</Type>
+							<Type>UNSIGNED</Type>
 							<SignalFactor>0.0218204013122759</SignalFactor>
 							<SignalOffset>-60</SignalOffset>
 						</Signal>
@@ -166,7 +594,7 @@
 							<StartBit>16</StartBit>
 							<Length>16</Length>
 							<ByteOrder>1</ByteOrder>
-							<Type>SIGNED</Type>
+							<Type>UNSIGNED</Type>
 							<SignalFactor>0.0218204013122759</SignalFactor>
 							<SignalOffset>-60</SignalOffset>
 						</Signal>
@@ -176,7 +604,7 @@
 							<StartBit>32</StartBit>
 							<Length>16</Length>
 							<ByteOrder>1</ByteOrder>
-							<Type>SIGNED</Type>
+							<Type>UNSIGNED</Type>
 							<SignalFactor>0.0218204013122759</SignalFactor>
 							<SignalOffset>-60</SignalOffset>
 						</Signal>
@@ -186,7 +614,7 @@
 							<StartBit>48</StartBit>
 							<Length>16</Length>
 							<ByteOrder>1</ByteOrder>
-							<Type>SIGNED</Type>
+							<Type>UNSIGNED</Type>
 							<SignalFactor>0.0218204013122759</SignalFactor>
 							<SignalOffset>-60</SignalOffset>
 						</Signal>
@@ -277,59 +705,13 @@
   <MQTT>
 	<IP>121.196.160.95</IP>
 	<Port>1883</Port>
-	<Username>test</Username>
-	<Passwd>test</Passwd>
+	<Username>user</Username>
+	<Passwd>guest</Passwd>
 	<NumModel>
 		<ReleaseCycle>1000</ReleaseCycle>
-		<NumMessages>20</NumMessages>
+		<NumMessages>39</NumMessages>
 	</NumModel>
 	<Messages>
-		<Message>
-			<MessageName>abc</MessageName>
-			<Reference>
-				<Channel>CAN1</Channel>
-				<Source>COM</Source>
-				<Name>C_56702492_1</Name>
-			</Reference>
-		</Message>
-		<Message>
-			<MessageName>xx2</MessageName>
-			<Reference>
-				<Channel>CAN1</Channel>
-				<Source>COM</Source>
-				<Name>C_56702492_2</Name>
-			</Reference>
-		</Message>
-		<Message>
-			<MessageName>xx3</MessageName>
-			<Reference>
-				<Channel>CAN1</Channel>
-				<Source>COM</Source>
-				<Name>C_56702492_3</Name>
-			</Reference>
-		</Message>
-		<Message>
-			<MessageName>xx666</MessageName>
-			<Reference>
-				<Channel>CAN1</Channel>
-				<Source>COM</Source>
-				<Name>C_56702492_8</Name>
-			</Reference>
-		</Message>
-		<Message>
-			<MessageName>Longitude</MessageName>
-			<Reference>
-				<Source>GPS</Source>
-				<Name>GPS_Longitude</Name>
-			</Reference>
-		</Message>
-		<Message>
-			<MessageName>Latitude</MessageName>
-			<Reference>
-				<Source>GPS</Source>
-				<Name>GPS_Latitude</Name>
-			</Reference>
-		</Message>
 		<Message>
 			<MessageName>Tbox_Voltage</MessageName>
 			<Reference>
@@ -352,6 +734,13 @@
 			</Reference>
 		</Message>
 		<Message>
+			<MessageName>GPS Visible sats</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>GPS_Visible_sats</Name>
+			</Reference>
+		</Message>
+		<Message>
 			<MessageName>GPS satellites number</MessageName>
 			<Reference>
 				<Source>GPS</Source>
@@ -359,10 +748,201 @@
 			</Reference>
 		</Message>
 		<Message>
-			<MessageName>GPS Visible sats</MessageName>
+			<MessageName>Latitude</MessageName>
 			<Reference>
 				<Source>GPS</Source>
-				<Name>GPS_Visible_sats</Name>
+				<Name>GPS_Latitude</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>Longitude</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>GPS_Longitude</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>GPS Speed</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>GPS_Speed</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>GPS Altitude</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>GPS_Altitude</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>UTC_Year</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>UTC_Year</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>UTC_Month</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>UTC_Month</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>UTC_Day</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>UTC_Day</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>UTC_Hour</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>UTC_Hour</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>UTC_Minute</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>UTC_Minute</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>UTC_Second</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>UTC_Second</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>C_56601399_1_C1</MessageName>
+			<Reference>
+				<Channel>CAN1</Channel>
+				<Source>COM</Source>
+				<Name>C_56601399_1</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>C_56601399_2_C1</MessageName>
+			<Reference>
+				<Channel>CAN1</Channel>
+				<Source>COM</Source>
+				<Name>C_56601399_2</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>C_56601399_3_C1</MessageName>
+			<Reference>
+				<Channel>CAN1</Channel>
+				<Source>COM</Source>
+				<Name>C_56601399_3</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>C_56601399_4_C1</MessageName>
+			<Reference>
+				<Channel>CAN1</Channel>
+				<Source>COM</Source>
+				<Name>C_56601399_4</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>C_56601399_1_C2</MessageName>
+			<Reference>
+				<Channel>CAN2</Channel>
+				<Source>COM</Source>
+				<Name>C_56601399_1</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>C_56601399_2_C2</MessageName>
+			<Reference>
+				<Channel>CAN2</Channel>
+				<Source>COM</Source>
+				<Name>C_56601399_2</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>C_56601399_3_C3</MessageName>
+			<Reference>
+				<Channel>CAN2</Channel>
+				<Source>COM</Source>
+				<Name>C_56601399_3</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>C_56601399_4_C4</MessageName>
+			<Reference>
+				<Channel>CAN2</Channel>
+				<Source>COM</Source>
+				<Name>C_56601399_4</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>C__1</MessageName>
+			<Reference>
+				<Channel>CAN1</Channel>
+				<Source>COM</Source>
+				<Name>C__1</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>D__1</MessageName>
+			<Reference>
+				<Channel>CAN1</Channel>
+				<Source>COM</Source>
+				<Name>D__1</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>E__1</MessageName>
+			<Reference>
+				<Channel>CAN1</Channel>
+				<Source>COM</Source>
+				<Name>E__1</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>F__1</MessageName>
+			<Reference>
+				<Channel>CAN1</Channel>
+				<Source>COM</Source>
+				<Name>F__1</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>10__1</MessageName>
+			<Reference>
+				<Channel>CAN1</Channel>
+				<Source>COM</Source>
+				<Name>10__1</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>11__1</MessageName>
+			<Reference>
+				<Channel>CAN1</Channel>
+				<Source>COM</Source>
+				<Name>11__1</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>12__1</MessageName>
+			<Reference>
+				<Channel>CAN1</Channel>
+				<Source>COM</Source>
+				<Name>12__1</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>13__1</MessageName>
+			<Reference>
+				<Channel>CAN1</Channel>
+				<Source>COM</Source>
+				<Name>13__1</Name>
 			</Reference>
 		</Message>
 	</Messages>
@@ -379,96 +959,10 @@
   <STORAGE>
 	<FileName>Tbox_test</FileName>
 	<NumModel>
-		<ReleaseCycle>10</ReleaseCycle>
+		<ReleaseCycle>5</ReleaseCycle>
 		<NumMessages>31</NumMessages>
 	</NumModel>
 	<Messages>
-		<Message>
-			<MessageName>C_56702492_1_C1_Voltage</MessageName>
-			<Reference>
-				<Channel>CAN1</Channel>
-				<Source>COM</Source>
-				<Name>C_56702492_1</Name>
-			</Reference>
-		</Message>
-		<Message>
-			<MessageName>C_56702492_2_C1_Current</MessageName>
-			<Reference>
-				<Channel>CAN1</Channel>
-				<Source>COM</Source>
-				<Name>C_56702492_2</Name>
-			</Reference>
-		</Message>
-		<Message>
-			<MessageName>C_56702492_3_C1_GGG</MessageName>
-			<Reference>
-				<Channel>CAN1</Channel>
-				<Source>COM</Source>
-				<Name>C_56702492_3</Name>
-			</Reference>
-		</Message>
-		<Message>
-			<MessageName>C_56702492_7_C1_Current</MessageName>
-			<Reference>
-				<Channel>CAN1</Channel>
-				<Source>COM</Source>
-				<Name>C_56702492_7</Name>
-			</Reference>
-		</Message>
-		<Message>
-			<MessageName>C_56702492_8_C1_Current</MessageName>
-			<Reference>
-				<Channel>CAN1</Channel>
-				<Source>COM</Source>
-				<Name>C_56702492_8</Name>
-			</Reference>
-		</Message>
-		<Message>
-			<MessageName>C2_CCP_1</MessageName>
-			<Reference>
-				<Channel>CAN2</Channel>
-				<Source>CCP</Source>
-				<Name>Voltage_1</Name>
-			</Reference>
-		</Message>
-		<Message>
-			<MessageName>C2_CCP_2</MessageName>
-			<Reference>
-				<Channel>CAN2</Channel>
-				<Source>CCP</Source>
-				<Name>Voltage_3</Name>
-			</Reference>
-		</Message>
-		<Message>
-			<MessageName>M_3_c1</MessageName>
-			<Reference>
-				<Channel>CAN1</Channel>
-				<Source>CCP</Source>
-				<Name>Voltage_3</Name>
-			</Reference>
-		</Message>
-		<Message>
-			<MessageName>M_3_c2</MessageName>
-			<Reference>
-				<Channel>CAN2</Channel>
-				<Source>CCP</Source>
-				<Name>Voltage_3</Name>
-			</Reference>
-		</Message>
-		<Message>
-			<MessageName>Longitude</MessageName>
-			<Reference>
-				<Source>GPS</Source>
-				<Name>GPS_Longitude</Name>
-			</Reference>
-		</Message>
-		<Message>
-			<MessageName>Latitude</MessageName>
-			<Reference>
-				<Source>GPS</Source>
-				<Name>GPS_Latitude</Name>
-			</Reference>
-		</Message>
 		<Message>
 			<MessageName>Tbox_Voltage</MessageName>
 			<Reference>
@@ -491,6 +985,13 @@
 			</Reference>
 		</Message>
 		<Message>
+			<MessageName>GPS Visible sats</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>GPS_Visible_sats</Name>
+			</Reference>
+		</Message>
+		<Message>
 			<MessageName>GPS satellites number</MessageName>
 			<Reference>
 				<Source>GPS</Source>
@@ -498,10 +999,137 @@
 			</Reference>
 		</Message>
 		<Message>
-			<MessageName>GPS Visible sats</MessageName>
+			<MessageName>Latitude</MessageName>
 			<Reference>
 				<Source>GPS</Source>
-				<Name>GPS_Visible_sats</Name>
+				<Name>GPS_Latitude</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>Longitude</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>GPS_Longitude</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>GPS Speed</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>GPS_Speed</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>GPS Altitude</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>GPS_Altitude</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>UTC_Year</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>UTC_Year</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>UTC_Month</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>UTC_Month</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>UTC_Day</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>UTC_Day</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>UTC_Hour</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>UTC_Hour</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>UTC_Minute</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>UTC_Minute</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>UTC_Second</MessageName>
+			<Reference>
+				<Source>GPS</Source>
+				<Name>UTC_Second</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>C_56601399_1_C1</MessageName>
+			<Reference>
+				<Channel>CAN1</Channel>
+				<Source>COM</Source>
+				<Name>C_56601399_1</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>C_56601399_2_C1</MessageName>
+			<Reference>
+				<Channel>CAN1</Channel>
+				<Source>COM</Source>
+				<Name>C_56601399_2</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>C_56601399_3_C1</MessageName>
+			<Reference>
+				<Channel>CAN1</Channel>
+				<Source>COM</Source>
+				<Name>C_56601399_3</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>C_56601399_4_C1</MessageName>
+			<Reference>
+				<Channel>CAN1</Channel>
+				<Source>COM</Source>
+				<Name>C_56601399_4</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>C_56601399_1_C2</MessageName>
+			<Reference>
+				<Channel>CAN2</Channel>
+				<Source>COM</Source>
+				<Name>C_56601399_1</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>C_56601399_2_C2</MessageName>
+			<Reference>
+				<Channel>CAN2</Channel>
+				<Source>COM</Source>
+				<Name>C_56601399_2</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>C_56601399_3_C3</MessageName>
+			<Reference>
+				<Channel>CAN2</Channel>
+				<Source>COM</Source>
+				<Name>C_56601399_3</Name>
+			</Reference>
+		</Message>
+		<Message>
+			<MessageName>C_56601399_4_C4</MessageName>
+			<Reference>
+				<Channel>CAN2</Channel>
+				<Source>COM</Source>
+				<Name>C_56601399_4</Name>
 			</Reference>
 		</Message>
 	</Messages>

@@ -24,7 +24,6 @@ private:
 	// CCP_DTO_ID DTO_ID;
 	// CCP_Byte_Order Byte_Order;
 	// CCP_Slave_Addr ccp_slave_addr_;	/* Intel */
-	const CCP_SlaveData ccp_salve_data_;
 
 	CROMsgType CROType_;
 	CCP_CTR CTR;
@@ -40,7 +39,7 @@ private:
 	typedef std::function<int(CCP_DWORD, CCP_BYTE, CCP_ByteVector)> CCP_SendFunc;
 	CCP_SendFunc CANSend;
 protected:
-
+	const CCP_SlaveData ccp_salve_data_;
 public:
 
 private:

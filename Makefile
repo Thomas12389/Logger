@@ -1,8 +1,26 @@
 #Compiler
-ARM_CC = arm-linux-gnueabihf-gcc
-ARM_CXX = arm-linux-gnueabihf-g++
+ARM_CC_53 = arm-linux-gnueabihf-gcc
+ARM_CXX_53 = arm-linux-gnueabihf-g++
+ARM_CC_83 = arm-linux-gnueabihf-8.3-gcc
+ARM_CXX_83 = arm-linux-gnueabihf-8.3-g++
+
+ifeq ($(GCC), gcc53)
+	ARM_CC = ${ARM_CC_53}
+	ARM_CXX = ${ARM_CXX_53}
+else ifeq (${GCC}, gcc83)
+	ARM_CC = ${ARM_CC_83}
+	ARM_CXX = ${ARM_CXX_83}
+else
+#    $(error Usage: make GCC={gcc53|gcc83})
+endif
+
 #OBJECT
-OBJECT = test_demo
+ifeq ($(GCC), gcc53)
+	OBJECT = test_demo_c53
+else ifeq (${GCC}, gcc83)
+	OBJECT = test_demo_c83
+endif
+
 #DEFINITIONS
 DEFS = -DTRACES_VERIFICATION
 #DEFS += -DGLIBCXX_USE_CXX11_ABI=0
@@ -34,15 +52,23 @@ INCLS += -I./tbox
 INCLS += -I./ConvertData
 INCLS += -I.
 INCLS += -I./Logger
-INCLS += -I/home/windhill/Desktop/libssh2/include
+INCLS += -I./Third_Dyn_Lib/libssh2-1.9.0/include
 
 #LIBS to include
-LIBS = -L/home/windhill/libssh2-1.9.0/arm_build/lib -lssh2
-LIBS += -L/home/windhill/mosquitto-1.6.12/lib -lmosquitto
+ifeq ($(GCC), gcc53)
+	LIBS = -L./Third_Dyn_Lib/libssh2-1.9.0/arm_gcc53_build/lib -lssh2
+	LIBS += -L./Third_Dyn_Lib/mosquitto-1.6.12/arm_gcc53_build/usr/local/lib -lmosquitto
+else ifeq (${GCC}, gcc83)
+	# gcc 8.3 工具链中已含该库
+	LIBS = -lssh2
+	LIBS += -L./Third_Dyn_Lib/mosquitto-1.6.12/arm_gcc83_build/usr/local/lib -lmosquitto
+endif
+
 LIBS += -lz
 LIBS += -ldl
 LIBS += -lpthread -mthumb -mthumb-interwork -D_REENTRANT
 LIBS += -lRTU_Module -lIOs_Module -lGPS2_Module -lGSM_Module -lINET_Module
+
 #STRIP
 ARM_STRIP = arm-linux-gnueabihf-strip
 
@@ -51,6 +77,12 @@ FLAGS = -Wall
 FLAGS += -std=c++11
 FLAGS += -Os
 
+.PHONY:
+	all clean
+
 all:
 	$(ARM_CXX) $(FLAGS) $(DEFS) -o$(OBJECT) $(SOURCE_FILE) $(INCLS) $(LIBS)
 	$(ARM_STRIP) $(OBJECT)
+	
+clean:
+	-rm -rf *.o $(OBJECT)

@@ -4,6 +4,9 @@
 
 #include <string>
 
+#define SELF_OBD
+
+#ifdef SELF_OBD
 struct OBD_FixData {
     double dFactor;
     double dOffset;
@@ -37,5 +40,23 @@ struct OBD_RecvPackage {
     OBD_Function *pOBD_Function;
     uint32_t nCANID;
 };
+#else
+typedef struct OBD_SigStruct {
+    uint8_t bIsSend;
+    uint8_t bIsSave;
+    uint16_t nIndex;
+    std::string strOutName;
+    std::string strSaveName;
+    
+    std::string strSigName;
+    std::string strSigUnit;
+    std::string strSigFormat;
+} OBD_SigStruct, WWHOBD_SigStruct, J1939_SigStruct;
+
+struct OBD_Message {
+    int nNumSigs;
+    OBD_SigStruct *pOBDSig;
+};
+#endif
 
 #endif

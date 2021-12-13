@@ -65,6 +65,7 @@ int parse_xml_dbc_signal(rapidxml::xml_node<> *pPackageNode, const char *ChanNam
             pSig[pReceiveMsg->nNumSigs].nStartBit = atoi(pSignalNode->first_node("StartBit")->value());
             pSig[pReceiveMsg->nNumSigs].nLen = atoi(pSignalNode->first_node("Length")->value());
 
+            // 若未配置 byteorder，默认为 Intel
             rapidxml::xml_node<> *pOrder = pSignalNode->first_node("ByteOrder");
             pSig[pReceiveMsg->nNumSigs].nByteOrder = (DBC_ByteOrder)(pOrder ? atoi(pOrder->value()) : 1);
 

@@ -1,11 +1,16 @@
 
 #include <unistd.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <thread>
 
 #include "OBD/OBD.h"
 #include "ConvertData/ConvertData.h"
 #include "DevConfig/PhyChannel.hpp"
+
+#include "Logger/Logger.h"
 
 extern Channel_MAP g_Channel_MAP;
 extern stu_CAN_UOMAP_ChanName_RcvPkg g_stu_CAN_UOMAP_ChanName_RcvPk;
@@ -16,13 +21,16 @@ OBD::OBD(const canInfo& pCANInfo)
     : pCANInfo(pCANInfo)
 {
     bReceiveThreadRunning = true;
+    fifo_path = "/tmp/";
     nOBDStatus_ = 0;
 }
         
 OBD::~OBD() {
     bReceiveThreadRunning = false;
+    unlink(fifo_path.c_str());
 }
-        
+
+#ifdef SELF_OBD        
 int OBD::Init() {
     Channel_MAP::iterator ItrChan = g_Channel_MAP.find(pCANInfo.nChanName);
     // printf("%s\n", pCANInfo.nChanName);
@@ -32,6 +40,16 @@ int OBD::Init() {
 	for (; ItrOBD != (ItrChan->second).CAN.mapOBD.end(); ItrOBD++) {
         vecOBDID.emplace_back(ItrOBD->first);
     }
+    fifo_path.append(pCANInfo.nChanName);
+    fifo_path.append("_");
+    fifo_path.append(protocol_enum_to_string(protocol_type::PRO_OBD));
+    // RegInfo info{fifo_path, vecOBDID};
+    int ret = mkfifo(fifo_path.c_str(), 0755);
+    if (ret < 0 && errno != EEXIST) {
+        perror("mkfifo");
+        exit(1);
+    }
+    can_register(pCANInfo.nChanName, protocol_type::PRO_OBD, {fifo_path, vecOBDID});
 #if 0
     // debug
     printf("Channel %s All OBD CAN ID : ", pCANInfo.nChanName);
@@ -166,6 +184,32 @@ void OBD::Send_Thread() {
 }
 
 void OBD::Receive_Thread() {
+    int r_fd = open(fifo_path.c_str(), O_RDONLY);
+    if (r_fd < 0) {
+        XLOG_ERROR("ERROR {} with {}, {}", pCANInfo.nChanName, protocol_enum_to_string(protocol_type::PRO_OBD), strerror(errno));
+    }
+
+    ssize_t nbytes = -1;
+    CANReceive_Buffer buffer;
+    memset(&buffer, 0, sizeof(buffer));
+    while (OBD_Run && bReceiveThreadRunning) {
+        nbytes = read(r_fd, &buffer, sizeof(buffer));
+        if (nbytes <= 0) {
+            perror("read");
+            continue;
+        }
+#if 0        
+        printf("%s read -- buffer.len = %d, data: ", pCANInfo.nChanName, buffer.can_dlc);
+        for (auto i = 0; i < buffer.can_dlc; i++) {
+            printf( "%02X ", buffer.can_data[i]);
+        }
+        printf("\n");
+#endif
+        recv_obd(buffer.can_id, buffer.can_dlc, buffer.can_data);
+
+    }
+
+#if 0
     while (OBD_Run && bReceiveThreadRunning) {
         // 10 ms
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -196,18 +240,22 @@ void OBD::Receive_Thread() {
         // 缓冲区存在需要的 ID
         CANReceive_Buffer RcvTemp = ItrMsgID->second;
 
-#if 0
+    #if 0
         printf("OBD receive_thread ok!\n");
         printf("ID: %#X\n", RcvTemp.can_id);
         for (int i = 0; i < RcvTemp.can_dlc; i++) {
             printf("%02X ", (RcvTemp.can_data[i] & 0xFF));
         }
         printf("\n");
-#endif
+    #endif
         ItrChan->second.erase(ItrMsgID);
         recv_obd(RcvTemp.can_id, RcvTemp.can_dlc, RcvTemp.can_data);
     }
+#endif
+
 }
+
+#endif
         
 
         

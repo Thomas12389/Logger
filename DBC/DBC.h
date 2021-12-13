@@ -9,6 +9,7 @@ class DBC {
 		const canInfo pCANInfo;
         bool bReceiveThreadRunning;
         std::vector<uint32_t> vecDBCID;
+        std::string fifo_path;
     private:
         void Receive_Thread();
         

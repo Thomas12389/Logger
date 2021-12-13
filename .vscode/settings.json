@@ -70,6 +70,11 @@
         "variant": "cpp",
         "queue": "cpp",
         "cjson.h": "c",
-        "dirent.h": "c"
+        "dirent.h": "c",
+        "inttypes.h": "c",
+        "msg.h": "c",
+        "msgbuf.h": "c",
+        "ipc.h": "c",
+        "msq.h": "c"
     }
 }

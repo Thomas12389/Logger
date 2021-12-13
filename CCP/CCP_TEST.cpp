@@ -1,5 +1,7 @@
 #include <thread>
 // #include <functional>
+#include <sstream>
+#include <iomanip>
 
 #include "tbox/Common.h"
 
@@ -26,11 +28,13 @@ CCP_TEST::CCP_TEST(const canInfo& pCANInfo, const CCP_SlaveData& pSalveData)
     , pCANInfo(pCANInfo)
 {
     bReceiveThreadRunning = true;
+    fifo_path = "/tmp/";
 	SetCCPSendFunc(std::bind(&CCP_TEST::CAN_Send, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 }
 
 CCP_TEST::~CCP_TEST() {
     bReceiveThreadRunning = false;
+    unlink(fifo_path.c_str());
 }
 
 // 将所有的 DAQList ID 取出
@@ -48,6 +52,21 @@ int CCP_TEST::Init() {
             vecDAQID.emplace_back((*ItrVecDAQList).nCANID);
         }
     }
+    fifo_path.append(pCANInfo.nChanName);
+    fifo_path.append("_");
+    fifo_path.append(protocol_enum_to_string(protocol_type::PRO_CCP));
+    // 多个从机时，使用 ECU 地址区分
+    fifo_path.append("_");
+    std::ostringstream oss;
+    oss << std::setiosflags(std::ios::uppercase) << std::hex << ccp_salve_data_.nEcuAddress;
+    fifo_path.append(oss.str());
+
+    int ret = mkfifo(fifo_path.c_str(), 0755);
+    if (ret < 0 && errno != EEXIST) {
+        perror("mkfifo");
+        exit(1);
+    }
+    can_register(pCANInfo.nChanName, protocol_type::PRO_CCP, {fifo_path, vecDAQID});
 
 #if 0
     printf("All DAQList CAN ID : ");
@@ -67,8 +86,47 @@ int CCP_TEST::Init() {
 }
 
 void CCP_TEST::Receive_Thread() {
+    int r_fd = open(fifo_path.c_str(), O_RDONLY);
+    if (r_fd < 0) {
+        XLOG_ERROR("ERROR {} with {}, {}", pCANInfo.nChanName, protocol_enum_to_string(protocol_type::PRO_CCP), strerror(errno));
+    }
+
+    ssize_t nbytes = -1;
+    CANReceive_Buffer buffer;
+    memset(&buffer, 0, sizeof(buffer));
+
     uint64_t start = getTimestamp(TIME_STAMP::NS_STAMP);
     uint64_t end = start;
+    while (CCP_Run && bReceiveThreadRunning) {
+
+        end = getTimestamp(TIME_STAMP::NS_STAMP);
+        if ((end - start) >= 5000000000) {
+            DAQList_Initialization();
+            start = getTimestamp(TIME_STAMP::NS_STAMP);
+        }
+
+        nbytes = read(r_fd, &buffer, sizeof(buffer));
+        if (nbytes <= 0) {
+            perror("read");
+            continue;
+        }
+#if 0        
+        printf("%s read -- buffer.len = %d, id = %" PRIu16 ", data: ", pCANInfo.nChanName, buffer.can_dlc, buffer.can_id);
+        for (auto i = 0; i < buffer.can_dlc; i++) {
+            printf( "%" PRIX8 " ", buffer.can_data[i]);
+        }
+        printf("\n");
+#endif
+        std::array<CCP_BYTE, 8> Msg;
+        for (size_t i = 0; i < Msg.size(); i++) {
+            Msg[i] = buffer.can_data[i];
+        }
+        CCPMsgRcv(buffer.can_id, Msg);
+
+        start = getTimestamp(TIME_STAMP::NS_STAMP);
+    }
+
+#if 0
     while (CCP_Run && bReceiveThreadRunning) {
         // 10 ms
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -110,20 +168,22 @@ void CCP_TEST::Receive_Thread() {
         for (size_t i = 0; i < Msg.size(); i++) {
             Msg[i] = RcvTemp.can_data[i];
         }
-#if 0
+    #if 0
         printf("CCP receive_thread ok!\n");
         printf("ID: %#X\n", RcvTemp.can_id);
         for (int i = 0; i < Msg.size(); i++) {
             printf("%02X ", (Msg[i] & 0xFF));
         }
         printf("\n");
-#endif
+    #endif
         // 清除已经处理过的消息，否则会影响下一条 DTO
         ItrChan->second.erase(ItrMsgID);
         CCPMsgRcv(RcvTemp.can_id, Msg);
 
         start = getTimestamp(TIME_STAMP::NS_STAMP);
     }
+#endif
+
 }
 
 int CCP_TEST::CAN_Send(uint32_t id, uint8_t len, CCP_ByteVector byteArray) {

@@ -72,6 +72,7 @@ void *push_to_publish_queue(void *arg) {
         for (; ItrMsg != g_stu_OutMessage.msg_struct.msg_list.end(); ItrMsg++) {
             Out_Message temp_message{(*ItrMsg).strName, (*ItrMsg).dPhyVal, (*ItrMsg).strPhyUnit, (*ItrMsg).strPhyFormat};
             publish_message.msg_list.push_back(temp_message);
+            (*ItrMsg).dPhyVal = SIGNAL_NAN;     // TODO:debug, 停止发送后将值设为 NAN
         }
 
         // 入队, 达到限制则丢掉最旧的

@@ -96,7 +96,7 @@ double GPS_Signal_Val(std::string& MsgName, GPSInfo *sCurGPSInfo) {
     } else if (MsgName == "UTC_Minute") {
         return sCurGPSInfo->CurDateTime.Minutes;
     } else if (MsgName == "UTC_Second") {
-        return (int)(sCurGPSInfo->CurDateTime.Seconds);
+        return (uint16_t)(sCurGPSInfo->CurDateTime.Seconds);
     } else if (MsgName == "GPS_Visible_sats") {
         return sCurGPSInfo->CurSVStatus.SV_InView;
     }

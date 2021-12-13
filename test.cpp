@@ -42,11 +42,14 @@ void *Net_Active(void *arg)
 		if (!runGSMHandlerEvents) break;
 		// sem_wait(&simSem);
 
+		iNet_IsActive(&isActive);		//Checks the correct working of the INET module.
+		if (1 == isActive) continue;
+
 		if (NO_ERROR != GSM_GetRegistration(&wRegistration)) {	// Gets the current network status.
 			XLOG_DEBUG("GSM_GetRegistration ERROR.");
 			continue;
 		}
-		// XLOG_DEBUG("GSM Network status {}.", (int)wRegistration);
+		XLOG_DEBUG("GSM Network status {}.", (int)wRegistration);
 		if (NO_NETWORK == wRegistration) {
 			XLOG_ERROR("GSM Network interruption.");
 			GSM_IsActive(&isActive);	//Checks if the GSM module is switched ON and active.
@@ -54,37 +57,13 @@ void *Net_Active(void *arg)
 				gsmStop();
 			}
 			while (0 != gsmStart());
+
 		}
-		
-		iNet_IsActive(&isActive);		//Checks the correct working of the INET module.
-		if (1 == isActive) continue;
+
+		// iNet_IsActive(&isActive);		//Checks the correct working of the INET module.
+		// if (1 == isActive) continue;
 		XLOG_ERROR("Network interruption.");
 		iNetStart();
-		// GSM_IsActive(&isActive);	//Checks if the GSM module is switched ON and active.
-		// if(1 == isActive) {
-		// 	gsmStop();
-		// }
-
-		// while(0 != gsmStart()) {
-		// 	XLOG_WARN("Please check the server network environment or whether the SIM card is inserted.");
-		// }
-		// sem_destroy(&simSem);
-		// if (NO_ERROR != GSM_GetGPRSRegistration(&wGPRSRegistration)) {
-		// 	XLOG_DEBUG("GSM_GetGPRSRegistration ERROR.");
-		// 	continue;
-		// }
-		// if (GPRS_REGISTERED == wGPRSRegistration ||
-		// 	GPRS_REGISTERED_ROAM == wGPRSRegistration) {
-		// 	XLOG_DEBUG("GPRS Network status ok {}.", (int)wGPRSRegistration);
-		// } else {
-		// 	XLOG_ERROR("GPRS Network interruption.");
-		// 	iNetStop();
-		// 	iNetStart();
-		// }
-		
-		// if(0 != Mosquitto_Connect()) {
-		// 	XLOG_WARN("Connect MQTT server failed.");
-		// }
 	
 	}
 	XLOG_TRACE("Net_Active thread exit.");
@@ -294,7 +273,7 @@ int main()
 	XLOG_INFO("Measurement start.");
 
 	// 初始化发布线程
-	publish_init();	
+	publish_init();
 	
 	// 启动文件存储功能
 	save_init();
@@ -326,7 +305,7 @@ int main()
 			XLOG_WARN("Can't upload data to the server in real time.");
 			break;
 		}
-	    sleep(6); // 减少重连次数
+	    sleep(10); // 减少重连次数
 		Mosquitto_Loop_Start();/*  */
 	    if(0 != Mosquitto_Connect()) {
 			XLOG_WARN("Can't upload data to the server in real time.");
@@ -342,7 +321,8 @@ int main()
 	pthread_t network_detection_id;
 	pthread_create(&network_detection_id, NULL, Net_Active, NULL);
 	pthread_setname_np(network_detection_id, "net detection");
-	pthread_join(network_detection_id, NULL);
+	// pthread_join(network_detection_id, NULL);
+	pthread_detach(network_detection_id);
 	
 	while(1) {
 		sleep(1000);

@@ -3,6 +3,9 @@
 #define __OBD_H__
 
 #include "tbox/CAN.h"
+//
+#include "DevConfig/OBDMessageStruct.h"
+//
 
 enum OBDStatus : uint8_t {
 	OBD_FREE = 0x01,
@@ -14,6 +17,7 @@ class OBD {
 		const canInfo pCANInfo;
         bool bReceiveThreadRunning;
         std::vector<uint32_t> vecOBDID;
+        std::string fifo_path;
 
         uint8_t nfunctionID_;
         uint8_t nSubFunction_;
@@ -23,6 +27,7 @@ class OBD {
         const int nOBDSendID = 0x7DF;
         const int nOBDSendLength = 0x08;
     private:
+#ifdef SELF_OBD   
         void Receive_Thread();
         void Send_Thread();
         int send_obd(uint8_t *byteArray);
@@ -32,12 +37,15 @@ class OBD {
         int getEngineRPM();
         int getAbsoluteThrottlePosition();
         int getAmbientAirTemperture();
+#endif
         
     public:
         OBD(const canInfo& pCANInfo);
         ~OBD();
+#ifdef SELF_OBD   
         int Init();
         int stop();
+#endif
 };
 
 #endif

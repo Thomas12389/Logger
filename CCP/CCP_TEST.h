@@ -9,8 +9,8 @@ class CCP_TEST : public CROMessage{
 		const canInfo pCANInfo;
         bool bReceiveThreadRunning;
         std::vector<uint32_t> vecDAQID;
+        std::string fifo_path;
 
-        // unsigned char ccp_timer_id;
     private:
         int CAN_Send(uint32_t id, uint8_t len, CCP_ByteVector byteArray);
 		void DAQRcv(uint32_t CAN_ID, CCP_ByteVector DAQ_Msg);

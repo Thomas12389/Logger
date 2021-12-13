@@ -3,18 +3,20 @@
 
 extern Channel_MAP g_Channel_MAP;
 
+#ifdef SELF_OBD
+
 // mock configure file
 static uint32_t nOBDMsgID = 0x7E8;
 static uint8_t num_function = 1;
 static uint8_t num_subfunc = 4;
 static uint32_t obd_signal_functionID{0x01};
-static std::vector<uint32_t> obd_signal_subfuncID{0x05, 0x0C, 0x11, 0x46};
-static std::vector<std::string> obd_signal_name{"EngineCoolantTemperature", "EngineRPM", "AbsoluteThrottlePostion", "AmbientAirTemperature"};
-static std::vector<std::string> obd_signal_unit{"°C", "1/min", "%", "°C"};
-static std::vector<std::string> obd_signal_format{"%d", "%.2f", "%.6f", "%d"};
-static std::vector<double> obd_signal_factor{1.0, 0.25, 0.392157, 1.0};
-static std::vector<double> obd_signal_offest{-40.0, 0.0, 0.0, -40.0};
-static std::vector<double> obd_signal_denominator{1.0, 1.0, 1.0, 1.0};
+static std::vector<uint32_t> obd_signal_subfuncID = {0x05, 0x0C, 0x11, 0x46};
+static std::vector<std::string> obd_signal_name = {"EngineCoolantTemperature", "EngineRPM", "AbsoluteThrottlePostion", "AmbientAirTemperature"};
+static std::vector<std::string> obd_signal_unit = {"°C", "1/min", "%", "°C"};
+static std::vector<std::string> obd_signal_format = {"%d", "%.2f", "%.6f", "%d"};
+static std::vector<double> obd_signal_factor = {1.0, 0.25, 0.392157, 1.0};
+static std::vector<double> obd_signal_offest = {-40.0, 0.0, 0.0, -40.0};
+static std::vector<double> obd_signal_denominator = {1.0, 1.0, 1.0, 1.0};
 
 int parse_xml_obd_subfunc(OBD_Function *pOBD_Function) {
     if (NULL == pOBD_Function) {
@@ -86,11 +88,11 @@ int parse_xml_obd_function(const char *ChanName) {
             (ItrChan->second).CAN.mapOBD[nMsgID] = pOBD_RecvPackage;
         } else {
             OBD_MAP_MsgID_RMsgPkg MapMsgIDRMsgPkg;
-            MapMsgIDRMsgPkg[nOBDMsgID] = pOBD_RecvPackage;
+            MapMsgIDRMsgPkg[nMsgID] = pOBD_RecvPackage;
             g_Channel_MAP[ChanName].CAN.mapOBD = MapMsgIDRMsgPkg;
         }
     } else {
-        delete[] pOBD_RecvPackage;
+        delete[] pOBD_RecvPackage->pOBD_Function;
         delete pOBD_RecvPackage;
     }
 
@@ -106,4 +108,56 @@ int parse_xml_obd(const char *ChanName, int nNumPacks) {
     }
     return 0;
 }
+
+#else
+
+int parse_xml_obd(rapidxml::xml_node<> *pOBDNode, const char *ChanName, const char *pOBDType, int nNumSignals) {
+    if (NULL == pOBDNode) return -1;
+
+    if (nNumSignals <= 0) return 0;
+
+    rapidxml::xml_node<> *pSigNode = NULL;
+    OBD_Message *pOBDMessage = new OBD_Message;
+    pOBDMessage->pOBDSig = new OBD_SigStruct[nNumSignals];
+    pOBDMessage->nNumSigs = 0;
+
+    // pOBDMessage->RequestID = strtoul(pOBDNode->first_attribute("RequestCANID")->value(), NULL, 16);
+    // pOBDMessage->ResponseID = strtoul(pOBDNode->first_attribute("ResponseCANID")->value(), NULL, 16);
+
+    pSigNode = pOBDNode->first_node("Signal");
+
+    OBD_SigStruct *pOBDSig = pOBDMessage->pOBDSig;
+    while (nNumSignals-- && pSigNode) {    // pNode 为 NULL 时结束，否则配置错误时会出现段错误
+        pOBDSig[pOBDMessage->nNumSigs].nIndex = atoi(pSigNode->first_node("IDX")->value());
+        pOBDSig[pOBDMessage->nNumSigs].bIsSend = 0;
+        pOBDSig[pOBDMessage->nNumSigs].strOutName = "";
+        pOBDSig[pOBDMessage->nNumSigs].bIsSave = 0;
+        pOBDSig[pOBDMessage->nNumSigs].strSaveName = "";
+        pOBDSig[pOBDMessage->nNumSigs].strSigFormat = "";
+        pOBDSig[pOBDMessage->nNumSigs].strSigName = pSigNode->first_node("Name")->value();
+        pOBDSig[pOBDMessage->nNumSigs].strSigUnit = pSigNode->first_node("Unit")->value();
+        pOBDMessage->nNumSigs++;
+
+        pSigNode = pSigNode->next_sibling("Signal");
+    }
+
+    if (pOBDMessage->nNumSigs) {
+        Channel_MAP::iterator ItrChan = g_Channel_MAP.find(ChanName);
+        if (ItrChan != g_Channel_MAP.end()) {
+            (ItrChan->second).CAN.mapOBD[pOBDType] = pOBDMessage;
+            // printf("pOBDType = %s\n", pOBDType);
+        } else {
+            OBD_MAP_Type_Msg MAPTypeMsg;
+            MAPTypeMsg[pOBDType] = pOBDMessage;
+            g_Channel_MAP[ChanName].CAN.mapOBD = MAPTypeMsg;
+            // printf("pOBDType = %s\n", pOBDType);
+        }
+    } else {
+        delete[] pOBDMessage->pOBDSig;
+        delete pOBDMessage;
+    }
+
+    return 0;
+}
+#endif
 

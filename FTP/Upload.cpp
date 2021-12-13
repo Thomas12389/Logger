@@ -52,7 +52,7 @@ int remove_recursively(const char *dir) {
         	}
 
 			// 递归子目录
-			char sub_dir_name[256] = {0};
+			char sub_dir_name[512] = {0};
 			sprintf(sub_dir_name, "%s/%s", dir, dp->d_name);
 			remove_recursively(sub_dir_name);
 		}
@@ -71,7 +71,7 @@ int sftp_upload() {
 
 	// compress
 	std::string data_absoult_path = STORGE_DIR_NAME + g_File_Info.strLocalDirName;
-	std::string log_file_name = "log_" + g_File_Info.strLocalDirName + ".log";
+	std::string log_file_name = "log_" + g_File_Info.strLocalDirName + ".log";	// 所有 log 文件
 
 	char compressName[256] = {0};
 	strcpy(compressName, (char *)(g_File_Info.strRemoteFileName + '_' + g_File_Info.strLocalDirName + ".gz").c_str());

@@ -148,17 +148,84 @@ int map_sigout2sigin(rapidxml::xml_node<> *pMsgOutNodes, int nNumMessages) {
                     
                 }
             }
-        } else if (0 == strncmp("OBD", pSource, strlen(pSource))) {
-            g_stu_OutMessage.msg_struct.msg_list.push_back({"EngineCoolantTemperature", SIGNAL_NAN, "°C", ""});
-            g_stu_OutMessage.msg_struct.msg_list.push_back({"EngineRPM", SIGNAL_NAN, "1/min", ""});
-            g_stu_OutMessage.msg_struct.msg_list.push_back({"AbsoluteThrottlePostion", SIGNAL_NAN, "%", ""});
-            g_stu_OutMessage.msg_struct.msg_list.push_back({"AmbientAirTemperature", SIGNAL_NAN, "°C", ""});
+        } 
+#ifndef SELF_OBD        
+        else if (0 == strncmp("OBD", pSource, strlen(pSource))) {
+            OBD_MAP_Type_Msg::iterator ItrOBD = (Itr->second).CAN.mapOBD.find("OBD");
+            // 不存在 OBD 信号
+            if (ItrOBD == (Itr->second).CAN.mapOBD.end()) {
+                pMsgNode = pMsgNode->next_sibling("Message");
+                continue;
+            }
 
+            OBD_SigStruct *pSig = (ItrOBD->second)->pOBDSig;
+            for (int Idx = 0; Idx < (ItrOBD->second)->nNumSigs; Idx++) {
+                // 根据信号名称查找
+                if (pName != pSig[Idx].strSigName) continue;
+                // 找到对应信号
+                pSig[Idx].bIsSend = 1;
+                pSig[Idx].strOutName = pMsgNode->first_node("MessageName")->value();
+                // printf("pSig[Idx].strOutName : %s, pName : %s\n", pSig[Idx].strOutName.c_str(), pName);
+                // 初始化信号值
+                g_stu_OutMessage.msg_struct.msg_list.push_back({pSig[Idx].strOutName, SIGNAL_NAN, pSig[Idx].strSigUnit, pSig[Idx].strSigFormat});
+                break;
+            }
+
+        } else if (0 == strncmp("WWHOBD", pSource, strlen(pSource))) {
+            OBD_MAP_Type_Msg::iterator ItrOBD = (Itr->second).CAN.mapOBD.find("WWHOBD");
+            // 不存在 WWHOBD 信号
+            if (ItrOBD == (Itr->second).CAN.mapOBD.end()) {
+                pMsgNode = pMsgNode->next_sibling("Message");
+                continue;
+            }
+
+            OBD_SigStruct *pSig = (ItrOBD->second)->pOBDSig;
+            for (int Idx = 0; Idx < (ItrOBD->second)->nNumSigs; Idx++) {
+                // 根据信号名称查找
+                if (pName != pSig[Idx].strSigName) continue;
+                // 找到对应信号
+                pSig[Idx].bIsSend = 1;
+                pSig[Idx].strOutName = pMsgNode->first_node("MessageName")->value();
+                // printf("pSig[Idx].strOutName : %s, pName : %s\n", pSig[Idx].strOutName.c_str(), pName);
+                // 初始化信号值
+                g_stu_OutMessage.msg_struct.msg_list.push_back({pSig[Idx].strOutName, SIGNAL_NAN, pSig[Idx].strSigUnit, pSig[Idx].strSigFormat});
+                break;
+            }
+
+        } else if (0 == strncmp("J1939", pSource, strlen(pSource))) {
+            OBD_MAP_Type_Msg::iterator ItrOBD = (Itr->second).CAN.mapOBD.find("J1939");
+            // 不存在 J1939 信号
+            if (ItrOBD == (Itr->second).CAN.mapOBD.end()) {
+                pMsgNode = pMsgNode->next_sibling("Message");
+                continue;
+            }
+
+            OBD_SigStruct *pSig = (ItrOBD->second)->pOBDSig;
+            for (int Idx = 0; Idx < (ItrOBD->second)->nNumSigs; Idx++) {
+                // 根据信号名称查找
+                if (pName != pSig[Idx].strSigName) continue;
+                // 找到对应信号
+                pSig[Idx].bIsSend = 1;
+                pSig[Idx].strOutName = pMsgNode->first_node("MessageName")->value();
+                // printf("pSig[Idx].strOutName : %s, pName : %s\n", pSig[Idx].strOutName.c_str(), pName);
+                // 初始化信号值
+                g_stu_OutMessage.msg_struct.msg_list.push_back({pSig[Idx].strOutName, SIGNAL_NAN, pSig[Idx].strSigUnit, pSig[Idx].strSigFormat});
+                break;
+            }
+            
         }
-
+#endif
         pMsgNode = pMsgNode->next_sibling("Message");
 
     }
+#ifdef SELF_OBD
+    // 2021.11.04 -- debug
+    g_stu_OutMessage.msg_struct.msg_list.push_back({"EngineCoolantTemperature", SIGNAL_NAN, "°C", ""});
+    g_stu_OutMessage.msg_struct.msg_list.push_back({"EngineRPM", SIGNAL_NAN, "1/min", ""});
+    g_stu_OutMessage.msg_struct.msg_list.push_back({"AbsoluteThrottlePostion", SIGNAL_NAN, "%", ""});
+    g_stu_OutMessage.msg_struct.msg_list.push_back({"AmbientAirTemperature", SIGNAL_NAN, "°C", ""});
+#endif
+
 #if 0
     LIST_Message::iterator ItrList = g_stu_OutMessage.msg_struct.msg_list.begin();
     for (; ItrList != g_stu_OutMessage.msg_struct.msg_list.end(); ItrList++) {
