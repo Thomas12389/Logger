@@ -112,7 +112,7 @@ int OBD::send_obd(uint8_t *byteArray) {
 	int Ms_count = 500;
 	// Send
 	nOBDStatus_ = OBD_RSP_PENDING;
-	if (0 != can_send(pCANInfo.nFd, nOBDSendID, nOBDSendLength, byteArray)) {
+	if (0 != can_send(pCANInfo.nChanName, pCANInfo.nFd, nOBDSendID, nOBDSendLength, byteArray)) {
 		return -1;
 	}
 

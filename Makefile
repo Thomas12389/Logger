@@ -23,27 +23,27 @@ endif
 
 #DEFINITIONS
 DEFS = -DTRACES_VERIFICATION
-#DEFS += -DGLIBCXX_USE_CXX11_ABI=0
 # 查看所有输出，发布时注释掉
-DEFS += -DTRACE_TRACES
+#DEFS += -DTRACE_TRACES
 # 调试信息，发布时注释掉
-DEFS += -DDEBUG_TRACES
+#DEFS += -DDEBUG_TRACES
 
 #Source Files
 SOURCE_FILE = $(wildcard ./DevConfig/*.cpp)
+SOURCE_FILE += $(wildcard *.cpp)
 SOURCE_FILE += $(wildcard ./tbox/*.cpp)
 SOURCE_FILE += $(wildcard ./ConvertData/*.cpp)
 SOURCE_FILE += $(wildcard ./PublishSignals/*.cpp)
 SOURCE_FILE += $(wildcard ./Mosquitto/*.cpp)
 SOURCE_FILE += $(wildcard ./CJson/*.c)
 SOURCE_FILE += $(wildcard ./CCP/*.cpp)
+SOURCE_FILE += $(wildcard ./XCP/*.cpp)
 SOURCE_FILE += $(wildcard ./DBC/*.cpp)
 SOURCE_FILE += $(wildcard ./OBD/*.cpp)
 SOURCE_FILE += $(wildcard ./PowerManagement/*.cpp)
 SOURCE_FILE += $(wildcard ./SaveFiles/*.cpp)
 SOURCE_FILE += $(wildcard ./FTP/*.cpp)
 SOURCE_FILE += $(wildcard ./Compress/*.cpp)
-SOURCE_FILE += $(wildcard *.cpp)
 SOURCE_FILE += $(wildcard ./Logger/*.cpp)
 
 #INCLUDE
@@ -53,15 +53,19 @@ INCLS += -I./ConvertData
 INCLS += -I.
 INCLS += -I./Logger
 INCLS += -I./Third_Dyn_Lib/libssh2-1.9.0/include
+# libftp.h
+INCLS += -I./Third_Dyn_Lib/ftplib-4.0-1/src
 
 #LIBS to include
 ifeq ($(GCC), gcc53)
 	LIBS = -L./Third_Dyn_Lib/libssh2-1.9.0/arm_gcc53_build/lib -lssh2
 	LIBS += -L./Third_Dyn_Lib/mosquitto-1.6.12/arm_gcc53_build/usr/local/lib -lmosquitto
+	LIBS += -L./Third_Dyn_Lib/ftplib-4.0-1/src/arm_gcc53_build/usr/lib -lftp
 else ifeq (${GCC}, gcc83)
 	# gcc 8.3 工具链中已含该库
 	LIBS = -lssh2
 	LIBS += -L./Third_Dyn_Lib/mosquitto-1.6.12/arm_gcc83_build/usr/local/lib -lmosquitto
+	LIBS += -L./Third_Dyn_Lib/ftplib-4.0-1/src/arm_gcc83_build/usr/lib -lftp
 endif
 
 LIBS += -lz

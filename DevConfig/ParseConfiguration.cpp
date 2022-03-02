@@ -7,6 +7,7 @@
 #include "DevConfig/ParseXmlFTP.hpp"
 #include "DevConfig/ParseXmlSTORAGE.hpp"
 #include "DevConfig/ParseXmlInside.hpp"
+#include "DevConfig/ParseXmlConnection.hpp"
 
 #include "Logger/Logger.h"
 
@@ -104,6 +105,16 @@ int parse_configuration(const char *pPath, const std::string strDate) {
     g_File_Info.strLocalDirName = strDate;
     if (-1 == parse_xml_storage(pNode, g_File_Info)) {
         XLOG_ERROR("Parse STORAGE configuration ERROR!");
+        return -1;
+    }
+
+    // 解析通信参数
+    pNode = pRoot->first_node("Connection");
+    if (NULL == pNode) {
+        XLOG_ERROR("Incorrect configuration file format(Connection)!");
+    }
+    if (-1 == parse_xml_connection(pNode)) {
+        XLOG_ERROR("Parse Connection configuration ERROR!");
         return -1;
     }
 

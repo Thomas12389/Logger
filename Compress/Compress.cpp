@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <libgen.h>
 
+#include "tbox/Common.h"
 #include "Logger/Logger.h"
 
 const int MAX_BUFFER_SIZE = 1024*1024*5;
@@ -35,13 +36,17 @@ int compress_gz(const char *dir_name, char *outfilename) {
     const char *gz_file_path = dirname(gz_path_name);
     // printf("parent_name: %s\n", parent_name);
     chdir(gz_file_path);
-    gzFile outfile = gzopen(outfilename, "wb");
+    gzFile gz_outfile = gzopen(outfilename, "wb");
     
     chdir(dir_name);
 
     unsigned long total_read = 0;
 
+#ifdef ONLY_CPU_TIME
     clock_t start = clock();
+#else
+    uint64_t start = getTimestamp(TIME_STAMP::US_STAMP);
+#endif
 
     // 读取文件夹下的所有数据文件
     struct dirent **namelist;
@@ -75,8 +80,18 @@ int compress_gz(const char *dir_name, char *outfilename) {
         while ((num_read = fread(DATA_BUFFER, 1, sizeof(DATA_BUFFER), infile)) > 0 ) {
             // printf("read %d bytes\n", num_read);
             total_read += num_read;
-            gzwrite(outfile, DATA_BUFFER, num_read);
+            int ret = gzwrite(gz_outfile, DATA_BUFFER, num_read);
+            if (ret <= 0) {
+                int gz_errno = Z_OK;
+                XLOG_ERROR("compress ERROR, {}.", gzerror(gz_outfile, &gz_errno));
+            }
             memset(DATA_BUFFER, 0, sizeof(DATA_BUFFER));
+        }
+        if (num_read < sizeof(DATA_BUFFER)) {
+            if (ferror(infile)) {
+                XLOG_ERROR("fread ERROR, {}");
+                clearerr(infile);
+            }
         }
         fclose(infile);
 
@@ -84,14 +99,24 @@ int compress_gz(const char *dir_name, char *outfilename) {
     }
     free(namelist);
 
+#ifdef ONLY_CPU_TIME
     clock_t end = clock();
-    gzclose(outfile);
+#else
+    uint64_t end = getTimestamp(TIME_STAMP::US_STAMP);
+#endif
+    
+    gzclose(gz_outfile);
 
     // 计算压缩后的文件大小
     chdir(gz_file_path);
     long gz_file_size = fileSize(outfilename);
-    
-    XLOG_DEBUG("The time taken to compress(ms):{:.3f}.",1000.0 * ( end - start) / CLOCKS_PER_SEC);
+
+#ifdef ONLY_CPU_TIME
+    XLOG_INFO("The time taken to compress all data files: {:.3f} ms.",1000.0 * ( end - start) / CLOCKS_PER_SEC);
+#else
+    XLOG_INFO("The time taken to compress all data files: {:.3f} ms.", 1.0 * (end - start) / 1000 );
+#endif
+
     if (total_read) {
         XLOG_DEBUG("Compression factor: {:.2f}%", (1.0 - gz_file_size * 1.0 / total_read) * 100.0);
     } else {

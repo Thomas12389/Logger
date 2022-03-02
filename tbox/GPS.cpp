@@ -140,10 +140,22 @@ void *GPS_Thread(void *arg)
                 continue;
             }
 
-            // 定位卫星过少时，只重写状态和数量
-            if (sCurGPSInfo.CurFullPostion.numSvs < 4) {
+            // 定位卫星过少或状态不可用时，只重写状态和数量
+            if ( (sCurGPSInfo.CurFullPostion.numSvs < 4) || 
+                (sCurGPSInfo.CurFullPostion.PosValid == 0) ){
+                
                 if ("GPS_Status" != pSig[idxSig].strSigName && 
                     "GPS_numSvs" != pSig[idxSig].strSigName) {
+
+                    if (pSig[idxSig].bIsSend) {
+                        std::lock_guard<std::mutex> lock(g_stu_OutMessage.msg_lock);
+                        write_msg_out_map(pSig[idxSig].strOutName, {pSig[idxSig].strOutName, SIGNAL_NAN, "", ""});
+                    }
+                    if (pSig[idxSig].bIsSave) {
+                        Msg.strName = pSig[idxSig].strSaveName;
+                        std::lock_guard<std::mutex> lock(g_stu_SaveMessage.msg_lock);
+                        write_msg_save_map(pSig[idxSig].strSaveName, {pSig[idxSig].strSaveName, SIGNAL_NAN, "", ""});
+                    }
                         
                     continue;
                 }
@@ -156,6 +168,7 @@ void *GPS_Thread(void *arg)
             }
             // 写存储信号 map
             if (pSig[idxSig].bIsSave) {
+                Msg.strName = pSig[idxSig].strSaveName;
                 std::lock_guard<std::mutex> lock(g_stu_SaveMessage.msg_lock);
                 write_msg_save_map(pSig[idxSig].strSaveName, Msg);
             }

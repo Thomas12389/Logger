@@ -10,16 +10,26 @@
 #include "tbox/GPS.h"
 #include "tbox/Internal.h"
 #include "tbox/CAN.h"
+#include "tbox/LED_Control.h"
 #include "Mosquitto/MOSQUITTO.h"
 #include "PublishSignals/PublishSignals.h"
 #include "SaveFiles/SaveFiles.h"
+
+#include "DevConfig/PhyChannel.hpp"
+#include "FTP/Upload.h"
 
 #include "Logger/Logger.h"
 
 char error[255] = {0};
 
+// 通信方式
+Connection g_Connection;
+
+extern Inside_MAP g_Inside_MAP;
+
 extern int OBD_Run;
 extern int CCP_Run;
+extern int XCP_Run;
 
 void GetTime(void)
 {
@@ -42,7 +52,7 @@ void SyncTime(void)
     
 	if(NO_ERROR != (ReturnCode = GetSystemTime(&Sys_Time)))
 	{
-		XLOG_WARN("%s",Str_Error(ReturnCode));
+		// XLOG_WARN("%s",Str_Error(ReturnCode));
 		return;
 	}
 	// printf("Date %04lu-%02u-%02u  Time %02u:%02u:%02u\n",
@@ -58,18 +68,18 @@ void SyncTime(void)
 	ReturnCode = RTUSetHWTime(curtime);
 	
 	if (NO_ERROR != ReturnCode) {
-		XLOG_WARN("Calibration time failed:{}",Str_Error(ReturnCode));
+		// XLOG_DEBUG("Calibration time failed:{}",Str_Error(ReturnCode));
 		return;
 	}
-	XLOG_INFO("Calibration time: {:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d} (UTC)",
-		curtime.year, curtime.month, curtime.day, curtime.hour, curtime.min, curtime.sec);
+	// XLOG_INFO("Calibration time: {:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d} (UTC)",
+		// curtime.year, curtime.month, curtime.day, curtime.hour, curtime.min, curtime.sec);
 }
 
 int InitRTUModule(void)
 {
 	int ReturnCode = NO_ERROR;
 	struct stat buf;
-	// wait some seconds until owaapi.lck is removed from thr filesystem
+	// wait some seconds until owaapi.lck is removed from the filesystem
 	for (int i = 0; i < 15; ++i) {
 		if (-1 == (ReturnCode = stat("/var/lock/owaapi.lck", &buf))) {
 			i = 15;
@@ -77,8 +87,8 @@ int InitRTUModule(void)
 		usecsleep(1, 0);
 	}
 	if (0 == ReturnCode) {
-		XLOG_DEBUG("/var/lock/owaapi.lck is always exist.");
-		return 1;
+		// XLOG_DEBUG("/var/lock/owaapi.lck is always exist.");
+		return -1;
 	}
 
 	// start RTUControl
@@ -86,7 +96,7 @@ int InitRTUModule(void)
 	{
 		if(ERROR_RTUCONTROL_ALREADY_INITALIZED != ReturnCode)	//Error 23: RTU Control already initialized.
 		{
-			XLOG_DEBUG("ERROR in RTUControl_Initialize. {}",Str_Error(ReturnCode));
+			// XLOG_DEBUG("ERROR in RTUControl_Initialize. {}",Str_Error(ReturnCode));
 			return -1;
 		}
 	}
@@ -95,7 +105,8 @@ int InitRTUModule(void)
 	{
 		if(ERROR_RTUCONTROL_ALREADY_STARTED != ReturnCode)	//Error 25: RTU Control already started.
 		{
-			XLOG_DEBUG("RROR in RTUControl_Start. {}",Str_Error(ReturnCode));
+			// XLOG_DEBUG("RROR in RTUControl_Start. {}",Str_Error(ReturnCode));
+			RTUControl_Finalize();
 			return -1;
 		}
   	}
@@ -124,7 +135,7 @@ int InitIOModule( void )
 	{
 		if(ERROR_IOS_ALREADY_INITIALIZED != ReturnCode)	//Error 114: IOs Module already initialized.
 		{
-			XLOG_DEBUG("{}",Str_Error(ReturnCode));
+			// XLOG_DEBUG("{}",Str_Error(ReturnCode));
 			return -1;
 		}    
 	}
@@ -133,7 +144,7 @@ int InitIOModule( void )
 	{
 		if(ERROR_IOS_ALREADY_STARTED != ReturnCode)	//Error 116: IOs Module already started.
 		{
-			XLOG_DEBUG("{}",Str_Error(ReturnCode));
+			// XLOG_DEBUG("{}",Str_Error(ReturnCode));
 			return -1;
 		}
 	}
@@ -155,42 +166,33 @@ int EndIOModule( void )
 
 // 测试使用
 void handler_exit(int num) {
-	// unsigned char id = 1;
-	// OWASYS_StopTimer(id);
-
-	int ReturnCode = 0;
-	// the GPS operation must be finish in case other modules remain running
-	ReturnCode = EndGPSModule();
-	if (-1 == ReturnCode) {
-		fprintf(stderr, "EndGPSModule ERROR!\n");
-	}
-
-	End_Internal();
-
-	OBD_Run = 0;
-	CCP_Run = 0;
-	Can_Stop();
-
+	
+	XLOG_INFO("Measurement Stop.");
+	// 停止采集
+	pre_to_stop_mode_1();
+	// 停止发布
 	publish_stop();
 	save_stop();
-
-	SyncTime();
-
-	iNetStop();
-	
-	gsmStop();	//Switches OFF the GSM module and ends all GSM communication
-
-	ReturnCode = EndIOModule();
-	if (-1 == ReturnCode) {
-		fprintf(stderr, "EndIOModule ERROR!\n");
+	// 保存缓冲区数据，并停止文件保存
+	save_last_file();
+	// 压缩、上传数据文件
+	int ret = ftp_upload();
+	if (-1 == ret) {
+		DEVICE_STATUS_ERROR();
+		//  XLOG_ERROR("Upload Failed.");
+	} else if (0 == ret){
+		// XLOG_INFO("FTP is not enabled.");
+	} else if (1 == ret) {
+		// XLOG_INFO("SFTP Upload successfully.");
+	} else if (2 == ret) {
+		// XLOG_INFO("FTP Upload successfully.");
 	}
 
-	ReturnCode = EndRTUModule();
-	if (-1 == ReturnCode) {
-		fprintf(stderr, "EndRTUModule ERROR!\n");
-	}
-
-	XLOG_END();
+	// 关闭网络
+	pre_to_stop_mode_2();
+	// 关闭状态指示灯
+	DEVICE_STATUS_OFF();
+	// XLOG_INFO("Enter STOP mode!");
 
 	exit(1);
 }
@@ -199,16 +201,28 @@ void pre_to_stop_mode_1() {
 
 	int ReturnCode = 0;
 	// the GPS operation must be finish in case other modules remain running
-	ReturnCode = EndGPSModule();
-	if (-1 == ReturnCode) {
-		XLOG_WARN("End GPS module ERROR.");
-	} else {
-		XLOG_INFO("End GPS module successfully.");
+	// 判断 GPS 是否启用
+	if (g_Inside_MAP.count("GPS") && g_Inside_MAP["GPS"].isEnable) {
+		ReturnCode = EndGPSModule();
+		if (-1 == ReturnCode) {
+			XLOG_WARN("End GPS module ERROR.");
+		} else {
+			XLOG_INFO("End GPS module successfully.");
+		}
 	}
-	End_Internal();
+	// 判断内部信号是否启用
+	if (g_Inside_MAP.count("Internal") && g_Inside_MAP["Internal"].isEnable) {
+		ReturnCode = End_Internal();
+		if (-1 == ReturnCode) {
+			XLOG_WARN("End Internal signals ERROR.");
+		} else {
+			XLOG_INFO("End Internal signals successfully.");
+		}
+	}
 
 	OBD_Run = 0;
 	CCP_Run = 0;
+	XCP_Run = 0;
 	Can_Stop();
 
 	return ;
@@ -216,11 +230,22 @@ void pre_to_stop_mode_1() {
 
 void pre_to_stop_mode_2() {
 	
-	SyncTime();
+	// SyncTime();
 
-	iNetStop();
+	if (true == g_Connection.Modem_Conn.bActive) {
+		system("sysclktohw");
+
+		iNetStop();
 	
-	gsmStop();	//Switches OFF the GSM module and ends all GSM communication
+		gsmStop();	//Switches OFF the GSM module and ends all GSM communication
+	}
+
+	if (g_Connection.nWLAN) {
+		system("sysclktohw");
+		system("/opt/TFM_scripts/WLAN_stop.sh");
+	}
+
+	XLOG_END();
 
 	return ;
 }

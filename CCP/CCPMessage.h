@@ -150,8 +150,8 @@ struct CCP_SlaveData {
 	uint32_t nEcuAddress;		// Station address (Intel Format)
 	uint32_t nIdCRO;		    // CAN Id used for CRO pacjages (29 Bits = MSB set)
 	uint32_t nIdDTO;		    // CAN Id used for DTO pacjages (29 Bits = MSB set)
-	bool bIntelFormat;			// Format used by the salve (True: Intel, False: Motorola)
-    uint16_t nProVersion;    	// CCP protocol version used by salve
+	bool bIntelFormat;			// Format used by the slave (True: Intel, False: Motorola)
+    uint16_t nProVersion;    	// CCP protocol version used by slave
 	// 重载 < 运算符， 方便使用 map
 	bool operator <(const CCP_SlaveData& a) const {
 		return nIdDTO < a.nIdDTO;

@@ -8,13 +8,13 @@
 #include <unistd.h>
 #include <cstring>
 
-CROMessage::CROMessage(const CCP_SlaveData ccp_salve_data) 
-	:ccp_salve_data_(ccp_salve_data)
+CROMessage::CROMessage(const CCP_SlaveData ccp_slave_data) 
+	:ccp_slave_data_(ccp_slave_data)
 {
 	CTR = 0;
 	CRM_Num_ = 0;
 	CTR_Loop_ = 0;
-	SendStatus_ = 0;
+	SendStatus_ = CCP_FREE;
 }
 
 void CROMessage::SetCCPSendFunc(CCP_SendFunc SendF) {
@@ -64,6 +64,7 @@ CCP_RESULT CROMessage::CCPMsgSend(CCP_ByteVector CCP_Msg) {
 	}
 	if (Ms_count <= 0) {
 		// printf("CCP ACK Timeout!!!\n");
+		// printf("SendStatus_: %d\n", SendStatus_);
 		return -1;
 	}
 	
@@ -173,6 +174,7 @@ void CROMessage::EVENTRcv(CCP_ByteVector EVENT_Msg) {
 }
 
 CCP_RESULT CROMessage::CRO_CONNECT(CCP_Slave_Addr Addr_Station) {
+	// SetCTR(0);
 	CCP_BYTE CC = CC_CONNECT;
 	CCP_BYTEPTR PTH = (CCP_BYTEPTR)(&Addr_Station);
 	CCP_ByteVector CRO_connect = {CC, CTR, *(PTH + 1), *PTH, 0x00, 0x00, 0x00, 0x00};
@@ -205,7 +207,7 @@ CCP_RESULT CROMessage::CRO_GET_DAQ_SIZE(CCP_BYTE DAQ_NO, CCP_DWORD DTO_ID, CCP_B
 	CCP_BYTE CC = CC_GET_DAQ_SIZE;
 	CCP_BYTEPTR PTID = (CCP_BYTEPTR)(&DTO_ID);
 	CCP_RESULT hResult = 0;
-	if (GetSalveOrder()) {
+	if (GetSlaveOrder()) {
 		CCP_ByteVector CRO_get_DAQ_size = {CC, CTR, DAQ_NO, 0x00, *PTID, *(PTID + 1), *(PTID + 2), *(PTID + 3)};
 		hResult = CCPMsgSend(CRO_get_DAQ_size);
 	} else {
@@ -228,7 +230,7 @@ CCP_RESULT CROMessage::CRO_SET_DAQ_PTR(CCP_BYTE DAQ_NO, CCP_BYTE ODT_NO, CCP_BYT
 CCP_RESULT CROMessage::CRO_WRITE_DAQ(CCP_BYTE Size_Element, CCP_BYTE Addr_Ext_Element, CCP_DWORD Addr_Element) {
 	CCP_BYTE CC = CC_WRITE_DAQ;
 	CCP_BYTEPTR PADDR = (CCP_BYTEPTR)(&Addr_Element);
-	if (GetSalveOrder()) {
+	if (GetSlaveOrder()) {
 		CCP_ByteVector CRO_write_DAQ = {CC, CTR, Size_Element, Addr_Ext_Element, *PADDR, *(PADDR + 1), *(PADDR + 2), *(PADDR + 3)};
 		return CCPMsgSend(CRO_write_DAQ);
 	} else {
@@ -240,7 +242,7 @@ CCP_RESULT CROMessage::CRO_WRITE_DAQ(CCP_BYTE Size_Element, CCP_BYTE Addr_Ext_El
 CCP_RESULT CROMessage::CRO_START_STOP(CCP_BYTE Mode, CCP_BYTE DAQ_NO, CCP_BYTE Last_ODT_NO, CCP_BYTE Event_Channel_NO, CCP_WORD Trans_Rate_Pre) {
 	CCP_BYTE CC = CC_START_STOP;
 	CCP_BYTEPTR PTRP = (CCP_BYTEPTR)(&Trans_Rate_Pre);
-	if (GetSalveOrder()) {
+	if (GetSlaveOrder()) {
 		CCP_ByteVector CRO_start_stop = {CC, CTR, Mode, DAQ_NO, Last_ODT_NO, Event_Channel_NO, *PTRP, *(PTRP + 1)};
 		return CCPMsgSend(CRO_start_stop);
 	} else {

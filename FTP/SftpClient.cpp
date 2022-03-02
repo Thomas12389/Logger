@@ -173,13 +173,16 @@ int SftpClient::SftpUpload(const char* LocalFile, const char* uploadDir, const c
 
     /* mkdir */
     int ret = 0;
-    if (nullptr == libssh2_sftp_opendir(sftp_session, uploadDir)) {
+    LIBSSH2_SFTP_HANDLE *pHandle = libssh2_sftp_opendir(sftp_session, uploadDir);
+    if (nullptr == pHandle) {
         ret = libssh2_sftp_mkdir(sftp_session, uploadDir, 0755);
         if (ret < 0) {
             fprintf(stderr, "libssh2_sftp_mkdir failed, error_no: %d\n", ret);
             SftpSessionDisconnect();
             return -1;
         }
+    } else {
+        libssh2_sftp_closedir(pHandle);
     }
 
     /* Request a file via SFTP */

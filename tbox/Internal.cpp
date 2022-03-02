@@ -50,7 +50,8 @@ void *Internal_Thread(void *arg)
 {
 
     while (runInternalThread) {
-        sleep(1);
+        // TODO：200 ms 采集一次
+        usleep(200000);
         if (!runInternalThread) break;
 
         Inside_MAP::iterator ItrSrc = g_Inside_MAP.find("Internal");
@@ -72,6 +73,7 @@ void *Internal_Thread(void *arg)
             }
             // 写存储信号 map
             if (pSig[idxSig].bIsSave) {
+                Msg.strName = pSig[idxSig].strSaveName;     // debug for only STORAGE
                 std::lock_guard<std::mutex> lock(g_stu_SaveMessage.msg_lock);
                 write_msg_save_map(pSig[idxSig].strSaveName, Msg);
             }

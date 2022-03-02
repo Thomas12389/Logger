@@ -25,6 +25,7 @@ int load_json(const char *pJsonPath, char **buffer) {
 	size_t ret = fread(json_temp, 1, json_size, json_file);
 	if (ret != json_size) {
 		XLOG_TRACE("Load json file {} ERROR.", pJsonPath);
+		fclose(json_file);
 		return -1;
 	}
 	json_temp[json_size] = '\0';
@@ -33,6 +34,7 @@ int load_json(const char *pJsonPath, char **buffer) {
 	free(json_temp);
 	if (!app_json) {
 		XLOG_TRACE("cJSON_Parse {} ERROR.", pJsonPath);
+		fclose(json_file);
 		return -1;
 	}
 
@@ -40,9 +42,11 @@ int load_json(const char *pJsonPath, char **buffer) {
 	cJSON_Delete(app_json);
 	if (!buffer) {
 		XLOG_TRACE("cJSON_PrintBuffered ERROR.");
+		fclose(json_file);
 		return -1;
 	}
 
+	fclose(json_file);
 	return 0;
 }
 

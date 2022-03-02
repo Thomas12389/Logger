@@ -6,34 +6,36 @@
 
 extern Channel_MAP g_Channel_MAP;
 
-int parse_xml_ccp_salve(rapidxml::xml_node<> *pCCPNode, const char *ChanName, int nNumSalves) {
+int parse_xml_ccp_slave(rapidxml::xml_node<> *pCCPNode, const char *ChanName, int nNumSlaves) {
 
-    if (nNumSalves) {
+    if (NULL == pCCPNode) return -1;
+    rapidxml::xml_node<> *pSlave = pCCPNode->first_node("Slave");
+    while (nNumSlaves-- && pSlave) {
         CCP_SlaveData stuCCP_SlaveData;
-        // Get salve data
-        rapidxml::xml_node<> *pNode = pCCPNode->first_node("CRO_CAN_ID");
+        // Get slave data
+        rapidxml::xml_node<> *pNode = pSlave->first_node("CRO_CAN_ID");
 	    stuCCP_SlaveData.nIdCRO = strtoul(pNode->value(), NULL, 16);
   
-        pNode = pCCPNode->first_node("DTO_CAN_ID");
+        pNode = pSlave->first_node("DTO_CAN_ID");
 	    stuCCP_SlaveData.nIdDTO = strtoul(pNode->value(), NULL, 16);
 
-        pNode = pCCPNode->first_node("STATION_ADDRESS");
+        pNode = pSlave->first_node("STATION_ADDRESS");
 	    stuCCP_SlaveData.nEcuAddress = strtoul(pNode->value(), NULL, 16);
 
-        pNode = pCCPNode->first_node("BYTE_ORDER");
+        pNode = pSlave->first_node("BYTE_ORDER");
         stuCCP_SlaveData.bIntelFormat = atoi(pNode->value()) ? CCP_LITTLE_ENDIAN : CCP_BIG_ENDIAN;
     
-        pNode = pCCPNode->first_node("VERSION");
+        pNode = pSlave->first_node("VERSION");
 	    stuCCP_SlaveData.nProVersion = strtol(pNode->value(), NULL, 16);
 
-        pNode = pCCPNode->first_node("DAQLists");
+        pNode = pSlave->first_node("DAQLists");
 
-        while (nNumSalves-- && pNode) {
+        while (NULL != pNode) {
             parse_xml_ccp_daq(stuCCP_SlaveData, pNode, ChanName);
             pNode = pNode->next_sibling("DAQLists");
         }
-
     }
+
  
     return 0;
 }
@@ -88,9 +90,9 @@ int parse_xml_ccp_odt(CCP_SlaveData SlaveData, rapidxml::xml_node<> *pDaqListNod
         if (Itr != g_Channel_MAP.end()) {
             (Itr->second).CAN.mapCCP[SlaveData].push_back(stuCCP_DAQList);
         } else {
-            CCP_MAP_Salve_DAQList CCPMapSalveCAQList;
-            CCPMapSalveCAQList[SlaveData].push_back(stuCCP_DAQList);
-            g_Channel_MAP[ChanName].CAN.mapCCP = CCPMapSalveCAQList;
+            CCP_MAP_Slave_DAQList CCPMapSlaveCAQList;
+            CCPMapSlaveCAQList[SlaveData].push_back(stuCCP_DAQList);
+            g_Channel_MAP[ChanName].CAN.mapCCP = CCPMapSlaveCAQList;
         }
 
     } else {
@@ -103,7 +105,7 @@ int parse_xml_ccp_odt(CCP_SlaveData SlaveData, rapidxml::xml_node<> *pDaqListNod
 
 int parse_xml_ccp_element(rapidxml::xml_node<> *pODTNode, CCP_ODT *pCCP_ODT) {
     rapidxml::xml_node<> *pNode = NULL;
-    
+  
     pNode = pODTNode->first_node("NumMeasurements");
     int nNumElements = atoi(pNode->value());
     if (nNumElements > 7) {

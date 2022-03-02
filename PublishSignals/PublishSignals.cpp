@@ -72,7 +72,7 @@ void *push_to_publish_queue(void *arg) {
         for (; ItrMsg != g_stu_OutMessage.msg_struct.msg_list.end(); ItrMsg++) {
             Out_Message temp_message{(*ItrMsg).strName, (*ItrMsg).dPhyVal, (*ItrMsg).strPhyUnit, (*ItrMsg).strPhyFormat};
             publish_message.msg_list.push_back(temp_message);
-            (*ItrMsg).dPhyVal = SIGNAL_NAN;     // TODO:debug, 停止发送后将值设为 NAN
+            (*ItrMsg).dPhyVal = SIGNAL_NAN;     // TODO:debug, 发送后将值设为 NAN
         }
 
         // 入队, 达到限制则丢掉最旧的
@@ -98,7 +98,6 @@ void *publish_signals_thread(void *arg) {
     
     while (1) {
         // 50 ms 检测一次
-        // usecsleep(0, 500000);
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
         
         if (!MQTT_pulish_run || !runPublishThread) {
@@ -166,6 +165,10 @@ void push_handler() {
 #endif
 
 int publish_init() {
+    // MQTT 未激活，直接返回
+    if (g_Net_Info.mqtt_server.bIsActive == false) {
+        return 0;
+    }
 #ifdef PUB_TIMER
     // 信号量初始化
     sem_init(&g_sem_publish, 0, 0);   
@@ -203,12 +206,16 @@ int publish_init() {
 }
 
 int publish_stop() {
+    if (g_Net_Info.mqtt_server.bIsActive == false) {
+        return 0;
+    }
     MQTT_pulish_run = 0;
     runPublishThread = 0;
 
 #ifdef PUB_TIMER
     OWASYS_StopTimer(publish_timer_id);
     OWASYS_FreeTimer(publish_timer_id);
+    sem_destroy(&g_sem_publish);
 #endif
 
     if (-1 == Mosquitto_Disconnect()) {

@@ -8,6 +8,10 @@
 #include <pthread.h>
 #include <semaphore.h>
 
+#include <unistd.h>
+#include <sys/reboot.h>
+
+
 #include "Logger/Logger.h"
 #include "tbox/LED_Control.h"
 
@@ -32,8 +36,10 @@ static int FillReturnMask(unsigned int PowerMode, unsigned long *pMainMask, unsi
 }
 
 void DINHander(input_int_t InPut) {
+   XLOG_INFO("1. FALLING_EDGE.");
 	sem_post(&gstc_sem_pow);
-	sem_destroy(&gstc_sem_pow);
+	// sem_destroy(&gstc_sem_pow);
+   XLOG_INFO("2. FALLING_EDGE.");
 }
 
 void *enter_stop_mode_thread(void *arg) {
@@ -41,7 +47,26 @@ void *enter_stop_mode_thread(void *arg) {
    unsigned long  MainCpuMask = 0, ExpBoardMask = 0;
    FillReturnMask(LP_MODE_OFF, &MainCpuMask, &ExpBoardMask);
 
-   sem_wait(&gstc_sem_pow);
+   int retval = 0;
+   unsigned char KL_15 = 2;
+   while (1) {
+      sem_wait(&gstc_sem_pow);
+      // 防止抖动
+      int count = 0;
+      while (retval = DIGIO_Get_DIN(DIGITAL_INPUT_0, &KL_15), !retval && !KL_15) {		
+         count++;
+         sleep(1);
+         if (count >= 3) {
+            break;
+         }
+      }
+      // 电平抖动
+      if (count < 3) {
+         XLOG_INFO("Level jitter.");
+      } else {
+         break;
+      }
+   }
 
    XLOG_INFO("Measurement Stop.");
    // 停止采集
@@ -50,24 +75,36 @@ void *enter_stop_mode_thread(void *arg) {
    publish_stop();
    save_stop();
    // 保存缓冲区数据，并停止文件保存
-   save_files(0, 0, 1);
-   // 上传数据文件
-	if (-1 == sftp_upload() ) {
-       XLOG_ERROR("Upload Failed.");
-   } else {
-      XLOG_INFO("Upload successfully.");
+   save_last_file();
+   // 压缩、上传数据文件
+   int ret = ftp_upload();
+	if (-1 == ret) {
+      DEVICE_STATUS_ERROR();
+      //  XLOG_ERROR("Upload Failed.");
+   } else if (0 == ret){
+      // XLOG_INFO("FTP is not enabled.");
+   } else if (1 == ret) {
+      // XLOG_INFO("SFTP Upload successfully.");
+   } else if (2 == ret) {
+      // XLOG_INFO("FTP Upload successfully.");
    }
 
    // 同步时间，关闭网络
    pre_to_stop_mode_2();
    // 关闭状态指示灯
    DEVICE_STATUS_OFF();
-   XLOG_INFO("Enter STOP mode!");
+   // XLOG_INFO("Enter STOP mode!");
 
-   int ret = RTUEnterStop(MainCpuMask, ExpBoardMask);
+   // 若此时 KL_15 为高电平，则重新启动
+   if (retval = DIGIO_Get_DIN(DIGITAL_INPUT_0, &KL_15), !retval && KL_15) {
+      sync();
+      reboot(RB_AUTOBOOT);
+   }
+
+   ret = RTUEnterStop(MainCpuMask, ExpBoardMask);
    if(NO_ERROR != ret ){
       DEVICE_STATUS_ERROR();
-      XLOG_ERROR("ERROR Going to STOP mode: {}.", Str_Error(ret));
+      // XLOG_ERROR("ERROR Going to STOP mode: {}.", Str_Error(ret));
    }
 
    pthread_exit(NULL);

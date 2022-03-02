@@ -1,6 +1,6 @@
 
-#ifndef __CPP_TEST_H__
-#define __CPP_TEST_H__
+#ifndef __CCP_TEST_H__
+#define __CCP_TEST_H__
 
 #include "CCP/CCP.h"
 
@@ -19,7 +19,7 @@ class CCP_TEST : public CROMessage{
     public:
         
     public:
-        CCP_TEST(const canInfo& pCANInfo, const CCP_SlaveData& pSalveData);
+        CCP_TEST(const canInfo& pCANInfo, const CCP_SlaveData& pSlaveData);
         ~CCP_TEST();
         int Init();
         int Session_Login();

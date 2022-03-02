@@ -4,6 +4,7 @@
 #define __COMMON_H
 
 #include <inttypes.h>
+#include <string>
 	
 #include "owa4x/INET_ModuleDefs.h" 
 #include "owa4x/GSM_ModuleDefs.h"
@@ -17,6 +18,8 @@
 #define RED(x)			COLOR(31, x)
 #define GREEN(x)		COLOR(32, x)
 #define YELLOW(x)		COLOR(33, x)
+
+// #define ONLY_CPU_TIME
 
 typedef enum TIME_STAMP : uint8_t {
 	S_STAMP,
@@ -34,9 +37,35 @@ typedef enum TIMER_ID : uint8_t {
 
 typedef enum COMMUNICATION_MODE : uint8_t {
 	LAN,
-	WiFi,
+	WLAN,
 	Modem
 } COMMUNICATION_MODE;
+
+// Connection
+struct WLAN_CONN {
+	std::string SSID;
+	std::string passwd;
+};
+
+struct LAN_CONN {
+
+};
+
+struct MODEM_CONN {
+	bool bActive;
+	std::string userName;
+	std::string passwd;
+	std::string APN;
+};
+
+struct Connection {
+	int nWLAN;
+	WLAN_CONN *pWLAN_CONN;
+	int nLAN;
+	LAN_CONN *pLAN_CONN;
+	MODEM_CONN Modem_Conn;
+};
+
 	
 void SyncTime(void);
 int InitRTUModule(void);

@@ -43,6 +43,7 @@ enum protocol_type : uint8_t {
 	PRO_WWHOBD = 0x04,
 	PRO_J1939 = 0x05,
 	PRO_UDS = 0x06,
+	PRO_XCP = 0x07,
 };
 
 // ID 注册
@@ -51,7 +52,7 @@ struct RegInfo{
 	std::vector<uint32_t> reg_ids;
 };
 typedef std::map<protocol_type, std::vector<RegInfo> > mapProtype_IDs;
-typedef std::map<std::string, mapProtype_IDs> mapID_Register;
+typedef std::map<std::string, mapProtype_IDs> mapID_Register;	// string 通道名称
 
 // CAN 接收缓冲区
 struct CANReceive_Buffer {
@@ -77,7 +78,7 @@ int Can_Enable(int);
 int Can_Start(void);
 void Can_Stop(void);
 
-int can_send(int nFd, uint32_t id, uint8_t len, uint8_t *byteArray);
+int can_send(std::string chanName, int nFd, uint32_t id, uint8_t len, uint8_t *byteArray);
 
 int can_register(std::string chn_name, protocol_type type, RegInfo reginfo);
 

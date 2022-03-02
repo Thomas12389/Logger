@@ -1,0 +1,299 @@
+
+#include "CCP_Parse_XML.h"
+#include "CCP.h"
+#include "Eci_inc/ECI105.h"
+
+#include <iostream>
+
+#define ECIDEMO_CHECKERROR(FuncName) \
+{\
+  if(ECI_OK == hResult)\
+  {\
+    OS_Printf(#FuncName "...succeeded.\n"); \
+  }\
+  else\
+  {\
+    OS_Printf( #FuncName "...failed with error code: 0x%08X. %s\n", \
+               hResult, \
+               ECI105_GetErrorString(hResult)); \
+  }\
+}
+
+// for test
+class CCP_TEST : public CROMessage{
+    private:
+        ECI_CTRL_HDL dwCtrlHandle;
+        // std::thread RcvThread;
+    private:
+        ECI_RESULT EciGetNthCtrlOfClass( const ECI_HW_INFO *pstcHwInfo, e_CTRLCLASS eCtrlClass, DWORD dwRelCtrlIndex, DWORD *pdwCtrIndex);
+        ECI_RESULT CAN_Init();
+        ECI_RESULT CAN_Close(DWORD dwCtrlHandle);
+        ECI_RESULT CAN_Send(uint16_t id, uint8_t len, CCP_ByteVector byteArray);
+        
+    public:
+        CCP_TEST();
+        ~CCP_TEST();
+        ECI_RESULT CAN_Receive(/*DWORD dwTimeout = 0*/);
+        CCP_RESULT Session_Login();
+        CCP_RESULT DAQList_Initialization();
+};
+
+CCP_TEST::CCP_TEST() {
+    dwCtrlHandle = ECI_INVALID_HANDLE;
+    if (ECI_OK == CAN_Init()) {
+        SetCCPSendFunc(std::bind(&CCP_TEST::CAN_Send, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+    }
+}
+
+CCP_TEST::~CCP_TEST() {
+    CAN_Close(dwCtrlHandle);
+}
+
+CCP_RESULT CCP_TEST::DAQList_Initialization() {
+    CCP_RESULT cResult = 0;
+    CCP_Slave_Addr addr = GetSlaveAddr();
+    cResult = CRO_CONNECT(addr);
+    if (-1 == cResult) {
+        fprintf(stderr, "CRO_CONNECT Error\n");
+        return -1;
+    }
+
+    cResult = CRO_SET_S_STATUS(~SS_DAQ);
+    if (-1 == cResult) {
+        fprintf(stderr, "CRO_SET_S_STATUS Error\n");
+        return -1;
+    }
+    int nChannelId = 1; // TODO
+    CCP_MAP_ChanIdx_CANIDMAP::iterator ItrChan = gCCP_MAP_ChanIdx_CANIDMAP.find(nChannelId);
+    if (ItrChan == gCCP_MAP_ChanIdx_CANIDMAP.end()) return -1;
+
+    uint32_t nMsgId = GetDtoID(); // TODO
+    CCP_MAP_CANID_DAQList::iterator ItrId = (ItrChan->second).find(nMsgId);
+    if (ItrId == (ItrChan->second).end()) return -1;
+
+    std::vector<CCP_DAQList>::iterator ItrVecDAQ = (ItrId->second).begin();
+    for (; ItrVecDAQ != (ItrId->second).end(); ItrVecDAQ++) {
+        CCP_BYTE DAQList_size = 0;
+        CCP_BYTE First_PID = 0;
+        cResult = CRO_GET_DAQ_SIZE((*ItrVecDAQ).nDaqNO, (*ItrVecDAQ).nCANID, &DAQList_size, &First_PID);
+        if (-1 == cResult) {
+            fprintf(stderr, "GET DAQList %d size Error\n", (*ItrVecDAQ).nDaqNO);
+            // return -1;
+            continue;
+        }
+        if ((*ItrVecDAQ).nOdtNum > DAQList_size ) {
+            (*ItrVecDAQ).nOdtNum = DAQList_size;
+            fprintf(stderr, "configure ODT numbers is too larger in <%d>th DAQList\n", (*ItrVecDAQ).nDaqNO);
+        }
+        (*ItrVecDAQ).nFirstPID = First_PID;
+
+        CCP_ODT *pODT = (*ItrVecDAQ).pODT;
+        for (int i = 0; i < (*ItrVecDAQ).nOdtNum; i++) {
+
+            CCP_ElementStruct *pEle = pODT[i].pElement;
+            for (int j = 0; j < pODT[i].nNumElements; j++) {
+                cResult = CRO_SET_DAQ_PTR((*ItrVecDAQ).nDaqNO, i, j);
+                if (-1 == cResult) {
+                    fprintf(stderr, "SET_DAQ_PTR <%d>th DAQList <%d>th ODT <%d>th Element Error\n", (*ItrVecDAQ).nDaqNO, i, j);
+                    // return -1;
+                    continue;
+                }
+                cResult = CRO_WRITE_DAQ(pEle[j].nLen, pEle[j].nAddress_Ex, pEle[j].nAddress);
+                if (-1 == cResult) {
+                    fprintf(stderr, "WRITE DAQ <%d>th DAQList <%d>th ODT <%d>th Element Error\n", (*ItrVecDAQ).nDaqNO, i, j);
+                    // return -1;
+                    continue;
+                }
+            }
+        }
+    }
+
+    cResult = CRO_SET_S_STATUS(SS_DAQ);
+    if (-1 == cResult) {
+        fprintf(stderr, "CRO_SET_S_STATUS Error\n");
+        return -1;
+    }
+
+    ItrVecDAQ = (ItrId->second).begin();
+    for (; ItrVecDAQ != (ItrId->second).end(); ItrVecDAQ++) {
+        cResult = CRO_START_STOP(MODE_START, (*ItrVecDAQ).nDaqNO, (*ItrVecDAQ).nOdtNum - 1,
+                                (*ItrVecDAQ).nEventChNO, (*ItrVecDAQ).nPrescaler);
+        if (-1 == cResult) {
+            fprintf(stderr, "START <%d> DAQList Error\n", (*ItrVecDAQ).nDaqNO);
+            // return -1;
+            continue;
+        }
+    }
+    return 0;
+}
+
+ECI_RESULT CCP_TEST::EciGetNthCtrlOfClass( const ECI_HW_INFO *pstcHwInfo, e_CTRLCLASS eCtrlClass, DWORD dwRelCtrlIndex, DWORD *pdwCtrIndex) {
+    ECI_RESULT hResult = ECI_ERR_RESOURCE_NOT_FOUND;
+    
+    //*** Check Arguments
+    if((NULL != pstcHwInfo) && (NULL != pdwCtrIndex)) {
+        //*** Struct Version 0 or 1
+        if (pstcHwInfo->dwVer <= ECI_STRUCT_VERSION_V1) {
+            DWORD dwIndex = 0;
+            //*** Iterate through all controllers
+            for(dwIndex=0; dwIndex < pstcHwInfo->u.V0.dwCtrlCount; dwIndex++) {
+                if(pstcHwInfo->u.V0.sCtrlInfo[dwIndex].wCtrlClass == eCtrlClass) {
+                    //*** Controller not found yet
+                    if(hResult != ECI_OK) {
+                        if(dwRelCtrlIndex == 0) {
+                            //*** Controller found
+                            *pdwCtrIndex = dwIndex;
+                            hResult = ECI_OK;
+                        } else {
+                            dwRelCtrlIndex--;
+                        }
+                    }
+                }//endif
+            }//end for
+        }//endif
+    } else {
+        hResult = ECI_ERR_INVALID_POINTER;
+    }
+    return hResult;
+}
+
+ECI_RESULT CCP_TEST::CAN_Init() {
+    ECI_RESULT  hResult       = ECI_OK;
+    ECI_HW_PARA astcHwPara[4] = {{0}};
+    ECI_HW_INFO stcHwInfo     = {0};
+    DWORD       dwIndex       = 0;
+    DWORD       dwHwIndex     = 0;
+    DWORD       dwCtrlIndex     = 0;
+    
+    //*** Prepare Hardware parameter structure for multiple boards
+    for(dwIndex=0; dwIndex < _countof(astcHwPara); dwIndex++) {
+        astcHwPara[dwIndex].wHardwareClass = ECI_HW_PCI;
+    }
+    
+    //*** At first call Initialize to prepare ECI driver
+    hResult = ECI105_Initialize(_countof(astcHwPara), astcHwPara);
+    ECIDEMO_CHECKERROR(ECI105_Initialize);
+    //*** Retrieve hardware info
+    if (ECI_OK == hResult) {
+        //*** Retrieve hardware info
+        hResult = ECI105_GetInfo(dwHwIndex, &stcHwInfo);
+    }
+    
+    //*** Find first CAN Controller of Board
+    if (ECI_OK == hResult) {
+        hResult = EciGetNthCtrlOfClass(&stcHwInfo,
+                                   ECI_CTRL_CAN,
+                                   0, //first relative controller
+								   &dwCtrlIndex);
+    }
+    
+    if (ECI_OK == hResult) {
+        ECI_CTRL_CONFIG stcCtrlConfig = {0};
+
+        stcCtrlConfig.wCtrlClass = ECI_CTRL_CAN;
+        stcCtrlConfig.u.sCanConfig.dwVer = ECI_STRUCT_VERSION_V0;
+        stcCtrlConfig.u.sCanConfig.u.V0.bBtReg0 = ECI_CAN_BT0_1000KB;
+        stcCtrlConfig.u.sCanConfig.u.V0.bBtReg1 = ECI_CAN_BT1_1000KB;
+        stcCtrlConfig.u.sCanConfig.u.V0.bOpMode = ECI_CAN_OPMODE_STANDARD;
+      
+        ECI_RESULT hResult = ECI105_CtrlOpen(&dwCtrlHandle, dwHwIndex, dwCtrlIndex, &stcCtrlConfig);
+        ECIDEMO_CHECKERROR(ECI105_CtrlOpen);
+        if (ECI_OK == hResult) {
+            hResult = ECI105_CtrlStart(dwCtrlHandle);
+            ECIDEMO_CHECKERROR(ECI105_CtrlStart);
+        }
+    }
+    return hResult;
+}
+
+ECI_RESULT CCP_TEST::CAN_Close(DWORD dwCtrlHandle) {
+    ECI_RESULT  hResult       = ECI_OK;
+	hResult = ECI105_CtrlStop(dwCtrlHandle, ECI_STOP_FLAG_NONE);
+    ECIDEMO_CHECKERROR(ECI105_CtrlStop);
+	//*** Wait some time to ensure bus idle
+	OS_Sleep(250);
+	hResult = ECI105_CtrlStop(dwCtrlHandle, ECI_STOP_FLAG_RESET_CTRL);
+    ECIDEMO_CHECKERROR(ECI105_CtrlStop);
+
+	//*** Close ECI Controller
+	hResult = ECI105_CtrlClose(dwCtrlHandle);
+    ECIDEMO_CHECKERROR(ECI105_CtrlClose);
+    
+    hResult = ECI105_Release();
+    ECIDEMO_CHECKERROR(ECI105_Release);
+
+    return hResult;
+}
+
+ECI_RESULT CCP_TEST::CAN_Send(uint16_t id, uint8_t len, CCP_ByteVector byteArray) {
+    ECI_CTRL_MESSAGE stcCtrlMsg   = {0};
+	//*** Prepare CAN Message to send
+	stcCtrlMsg.wCtrlClass                            = ECI_CTRL_CAN;
+	stcCtrlMsg.u.sCanMessage.dwVer                   = ECI_STRUCT_VERSION_V0;
+	stcCtrlMsg.u.sCanMessage.u.V0.dwMsgId            = id;
+	stcCtrlMsg.u.sCanMessage.u.V0.dwTime = 0;
+	stcCtrlMsg.u.sCanMessage.u.V0.uMsgInfo.Bits.dlc  = len;
+
+    //TODO: check the allowed data length.
+	// memcpy(stcCtrlMsg.u.sCanMessage.u.V0.abData, (void *)byteArray, len);
+    std::copy(byteArray.begin(), byteArray.end(), stcCtrlMsg.u.sCanMessage.u.V0.abData);
+
+	ECI_RESULT hResult = ECI105_CtrlSend(dwCtrlHandle, &stcCtrlMsg, 100);
+        if (ECI_OK == hResult) {    
+            printf("\ncan_send   ");
+            printf("ID: %#X\n", stcCtrlMsg.u.sCanMessage.u.V0.dwMsgId);
+            for (int i = 0; i < len; i++) {
+                printf("%02X ", (byteArray[i] & 0xFF));
+            }
+            printf("\n");
+        }
+
+	return hResult;
+}
+
+ECI_RESULT CCP_TEST::CAN_Receive(/*DWORD dwTimeout*/) {
+    // ECI_CTRL_MESSAGE rcvCtrlMsg[20] = {{0}};
+    // DWORD dwCount = _countof(rcvCtrlMsg);
+    ECI_CTRL_MESSAGE rcvCtrlMsg = {0};
+    DWORD dwCount = 1;
+    DWORD dwMsgIndex = 0;
+
+    ECI_RESULT hResult = ECI_OK;
+    while (1) {
+        dwCount = 1;
+        hResult = ECI105_CtrlReceive(dwCtrlHandle, &dwCount, &rcvCtrlMsg, 0);
+        if (ECI_OK == hResult) {
+            printf("receive a message    ");
+            std::array<CCP_BYTE, 8> msg;
+            for (int i = 0; i < msg.size(); i++) {
+                msg[i] = rcvCtrlMsg.u.sCanMessage.u.V0.abData[i];
+            }
+
+            printf("ID: %#X\n", rcvCtrlMsg.u.sCanMessage.u.V0.dwMsgId);
+            for (int i = 0; i < msg.size(); i++) {
+                printf("%02X ", (msg[i] & 0xFF));
+            }
+            printf("\n");
+            
+            CCPMsgRcv(rcvCtrlMsg.u.sCanMessage.u.V0.dwMsgId, msg);
+        }
+    }
+    
+}
+
+int main() {
+
+    CCP_TEST ccpTester;
+    if (-1 == ccpTester.Init()) {
+        DEBUG("ERROR", "CCP init failed");
+        return -1;
+    }
+    std::thread rcv_thread{&CCP_TEST::CAN_Receive, &ccpTester};
+    
+    CCP_RESULT ret = ccpTester.DAQList_Initialization();
+    if (-1 == ret) {
+        std::cout << "DAQList_Initialization ERROR" << std::endl;
+    }
+    rcv_thread.join();
+    return 0;
+}

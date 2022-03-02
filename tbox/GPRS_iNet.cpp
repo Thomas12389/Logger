@@ -46,7 +46,7 @@ pthread_t	iNetEvents;
 sem_t	iNetHandlerSem;
 
 
-void iNetStart( )
+void iNetStart(const char *userName, const char *passwd, const char *APN)
 {
 	TINET_MODULE_CONFIGURATION 	iNetConfiguration;
 	GPRS_ENHANCED_CONFIGURATION  gprsConfiguration;

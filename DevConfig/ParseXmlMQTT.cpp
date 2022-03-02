@@ -15,8 +15,19 @@ extern stu_OutMessage g_stu_OutMessage;
 int map_sigout2sigin(rapidxml::xml_node<> *pMsgOutNodes, int nNumMessages);
 
 int parse_xml_mqtt(rapidxml::xml_node<> *pMQTTNode, MQTT_Server& MQTT_Ser){
+    rapidxml::xml_node<> *pNode = pMQTTNode->first_node("active");
+    if (NULL == pNode) {
+        return -1;
+    }
+    char *pActive = pNode->value();
+    if (0 == strncmp("true", pActive, strlen("true"))) {
+        MQTT_Ser.bIsActive = true;
+    } else {
+        MQTT_Ser.bIsActive = false;
+        return 0;
+    }
 
-    rapidxml::xml_node<> *pNode = pMQTTNode->first_node("IP");
+    pNode = pMQTTNode->first_node("IP");
     MQTT_Ser.strIP = pNode->value();
 
     pNode = pMQTTNode->first_node("Port");
@@ -121,7 +132,7 @@ int map_sigout2sigin(rapidxml::xml_node<> *pMsgOutNodes, int nNumMessages) {
                 }
             }
         } else if (0 == strncmp("CCP", pSource, strlen(pSource))) {
-            CCP_MAP_Salve_DAQList::iterator ItrCCPRcv = (Itr->second).CAN.mapCCP.begin();
+            CCP_MAP_Slave_DAQList::iterator ItrCCPRcv = (Itr->second).CAN.mapCCP.begin();
             for (; ItrCCPRcv != (Itr->second).CAN.mapCCP.end(); ItrCCPRcv++) {
                 std::vector<CCP_DAQList>::iterator ItrDAQList = (ItrCCPRcv->second).begin();
                 
@@ -148,7 +159,35 @@ int map_sigout2sigin(rapidxml::xml_node<> *pMsgOutNodes, int nNumMessages) {
                     
                 }
             }
-        } 
+        } else if (0 == strncmp("XCP", pSource, strlen(pSource))) {
+            XCP_MAP_Slave_DAQList::iterator ItrXCPRcv = (Itr->second).CAN.mapXCP.begin();
+            for (; ItrXCPRcv != (Itr->second).CAN.mapXCP.end(); ItrXCPRcv++) {
+                std::vector<XCP_DAQList>::iterator ItrDAQList = (ItrXCPRcv->second).begin();
+                
+                for (; ItrDAQList != (ItrXCPRcv->second).end(); ItrDAQList++) {
+                    XCP_ODT *pODT = (*ItrDAQList).pODT;
+                    uint8_t nNumODTS = (*ItrDAQList).nOdtNum;
+                    uint8_t nIdxODT = 0;
+
+                    for (; nIdxODT < nNumODTS; nIdxODT++) {
+                        XCP_ElementStruct *pEle = pODT[nIdxODT].pElement;
+                        uint8_t nNumEles = pODT[nIdxODT].nNumElements;
+                        uint8_t nIdxEle = 0;
+
+                        for (; nIdxEle < nNumEles; nIdxEle++) {
+                            if (pName != pEle[nIdxEle].strElementName) continue;
+// printf("XCP -- 0x%02X <%ld>th DAQList <%d>th ODT <%d>th Ele\n", (*ItrDAQList).nCANID, std::distance((ItrXCPRcv->second).begin(),ItrDAQList), nIdxODT, nIdxEle);
+                            pEle[nIdxEle].bIsSend = 1;
+                            pEle[nIdxEle].strOutName = pMsgNode->first_node("MessageName")->value();
+                            // 初始化信号值
+                            g_stu_OutMessage.msg_struct.msg_list.push_back({pEle[nIdxEle].strOutName, SIGNAL_NAN, pEle[nIdxEle].strElementUnit, pEle[nIdxEle].strElementFormat});
+                            break;
+                        }
+                    }
+                    
+                }
+            }
+        }
 #ifndef SELF_OBD        
         else if (0 == strncmp("OBD", pSource, strlen(pSource))) {
             OBD_MAP_Type_Msg::iterator ItrOBD = (Itr->second).CAN.mapOBD.find("OBD");
@@ -220,10 +259,10 @@ int map_sigout2sigin(rapidxml::xml_node<> *pMsgOutNodes, int nNumMessages) {
     }
 #ifdef SELF_OBD
     // 2021.11.04 -- debug
-    g_stu_OutMessage.msg_struct.msg_list.push_back({"EngineCoolantTemperature", SIGNAL_NAN, "°C", ""});
-    g_stu_OutMessage.msg_struct.msg_list.push_back({"EngineRPM", SIGNAL_NAN, "1/min", ""});
-    g_stu_OutMessage.msg_struct.msg_list.push_back({"AbsoluteThrottlePostion", SIGNAL_NAN, "%", ""});
-    g_stu_OutMessage.msg_struct.msg_list.push_back({"AmbientAirTemperature", SIGNAL_NAN, "°C", ""});
+    // g_stu_OutMessage.msg_struct.msg_list.push_back({"EngineCoolantTemperature", SIGNAL_NAN, "°C", ""});
+    // g_stu_OutMessage.msg_struct.msg_list.push_back({"EngineRPM", SIGNAL_NAN, "1/min", ""});
+    // g_stu_OutMessage.msg_struct.msg_list.push_back({"AbsoluteThrottlePostion", SIGNAL_NAN, "%", ""});
+    // g_stu_OutMessage.msg_struct.msg_list.push_back({"AmbientAirTemperature", SIGNAL_NAN, "°C", ""});
 #endif
 
 #if 0

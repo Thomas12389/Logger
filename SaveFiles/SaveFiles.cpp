@@ -25,7 +25,7 @@ extern stu_SaveMessage g_stu_SaveMessage;
 extern File_Save g_File_Info;
 
 // 文件目录
-std::string STORGE_DIR_NAME = "/media/data/";
+std::string STORGE_DIR_NAME = "/media/TFM_DATA/";
 
 // 缓冲区大小
 static const uint32_t MSG_BUFFER_SIZE = 1024 * 1024 * 10;
@@ -53,7 +53,7 @@ static int runSaveThread = 0;
 static int runSaveFileThread = 0;
 
 // 保存文件的编号
-static const uint16_t MAX_FILE_NO = 500;
+static const uint16_t MAX_FILE_NO = 2000;
 static uint16_t nFileNO = 0x0001;
 
 #ifdef SAVE_TIMER
@@ -62,35 +62,30 @@ static sem_t gstc_save;
 static unsigned char save_timer_id = TIMER_ID::SAVE_TIMER_ID;
 #endif
 
-int save_files(uint16_t FileNO, uint32_t Length, uint8_t IsStop) {
+int save_files(uint16_t FileNO, uint32_t Length) {
     // printf("write length = %u\n", Length);
-    if (IsStop) {
-        // 若正在保存文件，则等其结束
-        while (runSaveFileThread);
 
-#ifdef C_STYLE
-        char *swap_ptr = buffer_ptr;
-        buffer_ptr = buffer_temp_ptr;
-        buffer_temp_ptr = swap_ptr;
-#else
-        std::swap(MSG_BUFFER, MSG_BUFFER_TEMP);
-#endif
-    }
-
+#ifdef ONLY_CPU_TIME
     clock_t start = clock();
+#else
+    uint64_t start = getTimestamp(TIME_STAMP::US_STAMP);
+#endif
 
     std::string ABSOULT_PATH_DIR_NAME = STORGE_DIR_NAME + g_File_Info.strLocalDirName;
     char old_path[256] = {0};
     getcwd(old_path, sizeof(old_path));
-    if (NULL == opendir(ABSOULT_PATH_DIR_NAME.c_str())) {
+    DIR *pDir = opendir(ABSOULT_PATH_DIR_NAME.c_str());
+    if (NULL == pDir) {
         XLOG_DEBUG("Directory {} doesn'e exist.", ABSOULT_PATH_DIR_NAME.c_str());
         int ret = 0;
         if ( (ret = mkdir(ABSOULT_PATH_DIR_NAME.c_str(), 0775)) == 0) {
-            XLOG_DEBUG("Make directory {} to save data.", ABSOULT_PATH_DIR_NAME.c_str());
+            XLOG_INFO("Make directory {} to save data.", ABSOULT_PATH_DIR_NAME.c_str());
         } else {
-            XLOG_DEBUG("mkdir: {}.", strerror(errno));
+            XLOG_ERROR("mkdir: {}.", strerror(errno));
             return -1;
         }
+    } else {
+        closedir(pDir);
     }
     
     chdir(ABSOULT_PATH_DIR_NAME.c_str());
@@ -98,10 +93,15 @@ int save_files(uint16_t FileNO, uint32_t Length, uint8_t IsStop) {
     char file_name[256] = {0};
     // 限制文件个数
     if (FileNO > MAX_FILE_NO) {
+        XLOG_ERROR("Capacity limit reached, stop save data.");
         FileNO = 0;
     }
+    // 停止时保存
     if (FileNO == 0) {
         FileNO = nFileNO++;
+        char *swap_ptr = buffer_ptr;
+        buffer_ptr = buffer_temp_ptr;
+        buffer_temp_ptr = swap_ptr;
     }
 
     if (Length == 0) {
@@ -121,7 +121,7 @@ int save_files(uint16_t FileNO, uint32_t Length, uint8_t IsStop) {
     // 也不要使用 sizeof， 无法保证 恰好 写满了缓冲区
     size_t total_write_blocks = fwrite(buffer_temp_ptr, 1, Length, pF);
     if (total_write_blocks < Length) {
-        XLOG_DEBUG("fwrite: {}", strerror(errno));
+        XLOG_ERROR("Save data to file: {}", strerror(errno));
         fclose(pF);
         chdir(old_path);
         return -1;
@@ -130,7 +130,7 @@ int save_files(uint16_t FileNO, uint32_t Length, uint8_t IsStop) {
 #else
     std::ofstream pF(file_name, std::ios::out | std::ios::binary);
     if (!pF) {
-        XLOG_DEBUG("std::ofstream open: {}", strerror(errno));
+        XLOG_ERROR("std::ofstream open: {}", strerror(errno));
         return -1;
     }
 
@@ -138,11 +138,26 @@ int save_files(uint16_t FileNO, uint32_t Length, uint8_t IsStop) {
     pF.close();
 #endif
 
+#ifdef ONLY_CPU_TIME
     clock_t end = clock();
-    XLOG_DEBUG("The time taken to save file {}:{:.3f} ms.", file_name, 1000.0 * ( end - start) / CLOCKS_PER_SEC);
+    XLOG_INFO("The time taken to save data file {}: {:.3f} ms.", file_name, 1000.0 * ( end - start) / CLOCKS_PER_SEC);
+#else
+    uint64_t end = getTimestamp(TIME_STAMP::US_STAMP);
+    XLOG_INFO("The time taken to save data file {}: {:.3f} ms.", file_name, 1.0 * (end - start) / 1000 );
+#endif
+    
 
     chdir(old_path);
     return 0;
+}
+
+int save_last_file() {
+    while (runSaveFileThread) {
+        // 100 ms
+        usleep(100000);
+        XLOG_WARN("-- save last file, but pre save thread is still running, waitting...");
+    }
+    return save_files(0, 0);
 }
 
 #ifdef C_STYLE
@@ -154,7 +169,7 @@ void runSaveFile(uint32_t length) {
 
     runSaveFileThread = 1;
     
-    save_files(nFileNO++, length, 0);
+    save_files(nFileNO++, length);
 
     runSaveFileThread = 0;
     pthread_exit(NULL);
@@ -186,16 +201,23 @@ void *save_msg_thread(void *arg) {
             while (ItrMsg != g_stu_SaveMessage.msg_struct.msg_list.end() && (signal_index < singals_count)) {
                 
                 double dval = (*ItrMsg).dPhyVal;
-                // printf("dval = %lf\n", dval);
+                // for debug
+                // printf("save_name: %s, dval = %lf\n", (*ItrMsg).strName, dval);
                 memcpy(temp_signals + sizeof(time_stamp) + sizeof(dval) * signal_index++, &dval, sizeof(dval));
 
                 ItrMsg++;
+            }
+            if (signal_index < singals_count) {
+                XLOG_ERROR("signal count ERROR");
             }
         }
 
         // 缓冲区写满，创建线程保存到文件
         if (BUFFER_LENGTH + sizeof(temp_signals) > MSG_BUFFER_SIZE) {
-
+            while (runSaveFileThread) {
+                usleep(1000);
+                XLOG_WARN("-- buffer flow, but pre save is still running...");
+            }
             // 保存已写入缓冲区的长度
             uint32_t write_length = BUFFER_LENGTH;
             BUFFER_LENGTH = 0;
@@ -214,9 +236,9 @@ void *save_msg_thread(void *arg) {
             pthread_create(&save_file_id_t, NULL, runSaveFile, (void *)&write_length);
             pthread_detach(save_file_id_t);
 
-#if CHECH_TIME
+    #if CHECH_TIME
             clock_t end1 = clock();
-#endif
+    #endif
             // 不需要清零，后续数据直接覆盖即可（10 M 空间清零需要 ms 级时间）
             // memset(buffer_ptr, 0, sizeof(MSG_BUFFER));
 #else
@@ -224,9 +246,9 @@ void *save_msg_thread(void *arg) {
             std::thread save_file_id_t(runSaveFile, write_length);
             save_file_id_t.detach();
 
-#ifdef CHECH_TIME
+    #ifdef CHECH_TIME
             clock_t end1 = clock();
-#endif
+    #endif
             // 不可使用 clear 方法， 该方法只是将 size 变为 0
             // MSG_BUFFER.clear();
             // MSG_BUFFER.assign(MSG_BUFFER.size(), 0x00);
@@ -258,6 +280,10 @@ void save_handler(unsigned char x) {
 #endif
 
 int save_init() {
+    // 文件保存未启用，直接返回
+    if (g_File_Info.bIsActive == false) {
+        return 0;
+    }
 
 #ifdef SAVE_TIMER
     sem_init(&gstc_save, 0, 0);
@@ -281,10 +307,14 @@ int save_init() {
 }
 
 int save_stop() {
+    if (g_File_Info.bIsActive == false) {
+        return 0;
+    }
     // 停止并释放定时器
 #ifdef SAVE_TIMER
     OWASYS_StopTimer(save_timer_id);
     OWASYS_FreeTimer(save_timer_id);
+    sem_destroy(&gstc_save);
 #endif
     // 停止信号保存线程
     runSaveThread = 0;

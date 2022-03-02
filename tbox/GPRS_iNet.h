@@ -36,7 +36,7 @@
 	//-----------------------------------------------------------------//
 	//Public Functions prototypes
 	//-----------------------------------------------------------------//
-	void iNetStart             ( );
+	void iNetStart             (const char *userName, const char *passwd, const char *APN);
 	void iNetStop              ( );
 	void iNet_DataCounters     ( );
 	void iNet_Active           ( );

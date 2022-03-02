@@ -23,8 +23,8 @@ void CCP_TEST::DAQRcv(uint32_t CAN_ID, CCP_ByteVector DAQ_Msg) {
     can_ccp_convert2msg(pCANInfo.nChanName, CAN_ID, pMsg);
 }
 
-CCP_TEST::CCP_TEST(const canInfo& pCANInfo, const CCP_SlaveData& pSalveData)
-	: CROMessage(pSalveData)
+CCP_TEST::CCP_TEST(const canInfo& pCANInfo, const CCP_SlaveData& pSlaveData)
+	: CROMessage(pSlaveData)
     , pCANInfo(pCANInfo)
 {
     bReceiveThreadRunning = true;
@@ -44,11 +44,13 @@ int CCP_TEST::Init() {
     // printf("%s\n", pCANInfo.nChanName);
     if (ItrChan == g_Channel_MAP.end()) return 0;
 
-	CCP_MAP_Salve_DAQList::iterator ItrCCP = (ItrChan->second).CAN.mapCCP.begin();
-	for (; ItrCCP != (ItrChan->second).CAN.mapCCP.end(); ItrCCP++) {
-			
+    CCP_MAP_Slave_DAQList::iterator ItrCCP = (ItrChan->second).CAN.mapCCP.find(ccp_slave_data_);
+    if (ItrCCP != (ItrChan->second).CAN.mapCCP.end()) {
+        // DTO ID 也需要注册
+        vecDAQID.emplace_back(GetDtoID());
 		std::vector<CCP_DAQList>::iterator ItrVecDAQList = (ItrCCP->second).begin();
 		for (; ItrVecDAQList != (ItrCCP->second).end(); ItrVecDAQList++) {
+            if (vecDAQID.end() == std::find(vecDAQID.begin(), vecDAQID.end(), (*ItrVecDAQList).nCANID)) continue;
             vecDAQID.emplace_back((*ItrVecDAQList).nCANID);
         }
     }
@@ -58,7 +60,7 @@ int CCP_TEST::Init() {
     // 多个从机时，使用 ECU 地址区分
     fifo_path.append("_");
     std::ostringstream oss;
-    oss << std::setiosflags(std::ios::uppercase) << std::hex << ccp_salve_data_.nEcuAddress;
+    oss << std::setiosflags(std::ios::uppercase) << std::hex << ccp_slave_data_.nEcuAddress;
     fifo_path.append(oss.str());
 
     int ret = mkfifo(fifo_path.c_str(), 0755);
@@ -77,7 +79,10 @@ int CCP_TEST::Init() {
 #endif
     // 启动接收线程
     std::thread rcv_thread_id{&CCP_TEST::Receive_Thread, this};
-    pthread_setname_np(rcv_thread_id.native_handle(), "CCP receive");
+    char thread_name[16] = {0};
+    strncat(thread_name, pCANInfo.nChanName, strlen(pCANInfo.nChanName));
+    strncat(thread_name, "CCP receive", strlen("CCP receive"));
+    pthread_setname_np(rcv_thread_id.native_handle(), thread_name);
     rcv_thread_id.detach();
 
     DAQList_Initialization();
@@ -97,17 +102,30 @@ void CCP_TEST::Receive_Thread() {
 
     uint64_t start = getTimestamp(TIME_STAMP::NS_STAMP);
     uint64_t end = start;
+    // 设置读为非阻塞
+    int flags = fcntl(r_fd, F_GETFL);
+    flags |= O_NONBLOCK;
+    fcntl(r_fd, F_SETFL, flags);
     while (CCP_Run && bReceiveThreadRunning) {
+        // 10 ms
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
         end = getTimestamp(TIME_STAMP::NS_STAMP);
         if ((end - start) >= 5000000000) {
-            DAQList_Initialization();
+            // DAQList_Initialization();
+            std::thread daq_init_thread{&CCP_TEST::DAQList_Initialization, this};
+            char thread_name[16] = {0};
+            strncat(thread_name, pCANInfo.nChanName, strlen(pCANInfo.nChanName));
+            strncat(thread_name, "CCP DAQInit", strlen("CCP DAQInit"));
+            pthread_setname_np(daq_init_thread.native_handle(), thread_name);
+            daq_init_thread.detach();
+
             start = getTimestamp(TIME_STAMP::NS_STAMP);
         }
 
         nbytes = read(r_fd, &buffer, sizeof(buffer));
         if (nbytes <= 0) {
-            perror("read");
+            // perror("read");
             continue;
         }
 #if 0        
@@ -125,6 +143,9 @@ void CCP_TEST::Receive_Thread() {
 
         start = getTimestamp(TIME_STAMP::NS_STAMP);
     }
+    close(r_fd);
+
+    // stop
 
 #if 0
     while (CCP_Run && bReceiveThreadRunning) {
@@ -189,7 +210,7 @@ void CCP_TEST::Receive_Thread() {
 int CCP_TEST::CAN_Send(uint32_t id, uint8_t len, CCP_ByteVector byteArray) {
 	uint8_t Msg[8];
 	std::copy(byteArray.begin(), byteArray.end(), Msg);
-	return can_send(pCANInfo.nFd, id, len, Msg);
+	return can_send(pCANInfo.nChanName, pCANInfo.nFd, id, len, Msg);
 }
 
 int CCP_TEST::DAQList_Initialization() {
@@ -217,7 +238,7 @@ int CCP_TEST::DAQList_Initialization() {
     }
 
     uint32_t nMsgId = GetDtoID(); // TODO
-    CCP_MAP_Salve_DAQList::iterator ItrCCP = (ItrChan->second).CAN.mapCCP.begin();
+    CCP_MAP_Slave_DAQList::iterator ItrCCP = (ItrChan->second).CAN.mapCCP.begin();
 	for (; ItrCCP != (ItrChan->second).CAN.mapCCP.end(); ItrCCP++) {
 		if ((ItrCCP->first).nIdDTO != nMsgId) continue;
 		break;

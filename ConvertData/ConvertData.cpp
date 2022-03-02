@@ -97,6 +97,7 @@ int can_obd_convert2msg(const char *ChanName, uint32_t nCANID, uint8_t *pMsgData
     }
     // 写存储信号 map
     if (pOBD_SubFunc[nIdxSubFunc].bIsSave) {
+        Msg.strName = pOBD_SubFunc[nIdxSubFunc].strSaveName;
         std::lock_guard<std::mutex> lock(g_stu_SaveMessage.msg_lock);
         write_msg_save_map(pOBD_SubFunc[nIdxSubFunc].strSaveName, Msg);
     }
@@ -248,6 +249,7 @@ int can_dbc_convert2msg(const char *ChanName, uint32_t nCANID, uint8_t *pMsgData
         }
         // 写存储信号 map
         if (pSig[idxSig].bIsSave) {
+            Msg.strName = pSig[idxSig].strSaveName;
             std::lock_guard<std::mutex> lock(g_stu_SaveMessage.msg_lock);
             write_msg_save_map(pSig[idxSig].strSaveName, Msg);
         }
@@ -272,7 +274,7 @@ int can_ccp_convert2msg(const char *ChanName, uint32_t nCANID, uint8_t *pMsgData
     }
 
     // 检查 ID
-    CCP_MAP_Salve_DAQList::iterator ItrCCP = (ItrChan->second).CAN.mapCCP.begin();
+    CCP_MAP_Slave_DAQList::iterator ItrCCP = (ItrChan->second).CAN.mapCCP.begin();
     for (; ItrCCP != (ItrChan->second).CAN.mapCCP.end(); ItrCCP++) {
         std::vector<CCP_DAQList>::iterator ItrVecDAQ = (ItrCCP->second).begin();
         for (; ItrVecDAQ != (ItrCCP->second).end(); ItrVecDAQ++) {
@@ -369,6 +371,130 @@ int can_ccp_convert2msg(const char *ChanName, uint32_t nCANID, uint8_t *pMsgData
             write_msg_out_map(pEle->strOutName, Msg);
         }
         if (pEle->bIsSave) {
+            Msg.strName = pEle->strSaveName;
+            std::lock_guard<std::mutex> lock(g_stu_SaveMessage.msg_lock);
+            write_msg_save_map(pEle->strSaveName, Msg);
+        }
+        nUsedLen += pEle->nLen;
+#if 0
+        std::cout << "Channel name = " << ChanName << "  MsgID = " << std::hex << (*ItrVecDAQ).nCANID << std::endl;
+        std::cout << "idxEle = " << idxEle << ", pEle->StrOutName : " << pEle->strOutName;
+        std::cout << ", dPhyValue = " << dPhyValue << std::endl << std::endl;
+#endif
+    }
+    return 0;
+}
+
+int can_xcp_convert2msg(const char *ChanName, uint32_t nCANID, uint8_t *pMsgData) {
+    if (NULL == ChanName) {
+        return -1;
+    }
+
+    Channel_MAP::iterator ItrChan = g_Channel_MAP.find(ChanName);
+    if (ItrChan == g_Channel_MAP.end()) {
+        XLOG_TRACE("WARN: xcp_convert: channel {} not exist.", ChanName);
+        return -1;
+    }
+
+    // 检查 ID
+    XCP_MAP_Slave_DAQList::iterator ItrXCP = (ItrChan->second).CAN.mapXCP.begin();
+    for (; ItrXCP != (ItrChan->second).CAN.mapXCP.end(); ItrXCP++) {
+        std::vector<XCP_DAQList>::iterator ItrVecDAQ = (ItrXCP->second).begin();
+        for (; ItrVecDAQ != (ItrXCP->second).end(); ItrVecDAQ++) {
+            // printf("(*ItrVecDAQ).nCANID = 0x%02X\n", (*ItrVecDAQ).nCANID);
+            // printf("nCANID = 0x%02X\n", nCANID);
+            if ((*ItrVecDAQ).nCANID != nCANID) continue;
+            break;
+        }
+        if (ItrVecDAQ == (ItrXCP->second).end()) continue;
+        break;
+    }
+    if (ItrXCP == (ItrChan->second).CAN.mapXCP.end()) {
+        XLOG_TRACE("WARN: xcp_convert: channel {} dosen't exist DAQList_ID:{}.", ChanName, nCANID);
+        return -1;
+    }
+
+    // 检查 PID
+    std::vector<XCP_DAQList>::iterator ItrVecDAQ = (ItrXCP->second).begin();
+    XCP_ODT *pODT = (*ItrVecDAQ).pODT;
+    uint8_t nIdxODT = 0;
+    uint8_t nPID = pMsgData[0];
+    for (; ItrVecDAQ != (ItrXCP->second).end(); ItrVecDAQ++) {
+        pODT = (*ItrVecDAQ).pODT;
+        nIdxODT = 0;
+        for (; nIdxODT < (*ItrVecDAQ).nOdtNum; nIdxODT++) {
+            if ((*ItrVecDAQ).nFirstPID + nIdxODT != nPID) continue;
+            break;
+        }
+        if (nIdxODT == (*ItrVecDAQ).nOdtNum) continue;
+        break;
+    }
+    if (ItrVecDAQ == (ItrXCP->second).end()) {
+        XLOG_TRACE("WARN: xcp_convert: channel {} DAQList_ID:{} dosen't exist PID {}.", ChanName, nCANID, nPID);
+        return -1;
+    }
+    
+    // 数据转换
+    XCP_ElementStruct *pEle = pODT[nIdxODT].pElement;
+    uint8_t nUsedLen = 1;      // 已经使用的字节数， PID 占一字节
+    for (int idxEle = 0; idxEle < pODT[nIdxODT].nNumElements; idxEle++) {
+        pEle = pEle + idxEle;       // 遍历到第几个 Element
+        if (!pEle->bIsSave && !pEle->bIsSend) continue;
+        
+        int nStartByte = nUsedLen;      // 从第几个字节开始
+        int nEndByte = nStartByte + pEle->nLen - 1;     // 到第几个字节结束
+        int nByteCount = pEle->nLen;
+
+        int32_t lRet = 0;
+        if (nByteCount > 1) {
+            while (nByteCount--) {
+                if (pEle->nByteOrder == XCP_LITTLE_ENDIAN) {
+                    // 高字节
+                    int32_t temp = ((int32_t)pMsgData[nEndByte--]) << ((nByteCount) << 3);
+                    lRet |= temp;
+                    // printf("nByteCount = %d, lRet = %#x\n", nByteCount, lRet);
+                } else {
+                    lRet <<= 8;
+                    lRet |= pMsgData[nStartByte++];
+                }
+            }
+            lRet &= pEle->StcFix.cMask;
+        } else {
+            lRet = pMsgData[nStartByte] & pEle->StcFix.cMask;
+        }
+        // printf("lRet = %#x\n", lRet);
+
+        double dFactor = pEle->StcFix.dFactor;
+        double dOffest = pEle->StcFix.dOffset;
+        double dPhyValue = 0.0;
+
+        if (pEle->nType == XCP_SIGNED) {
+            uint64_t bSign = (lRet >> (8 * pEle->nLen - 1)) & 0x01;  // 符号位
+            if (pEle->nLen == 1) {
+                dPhyValue = (int8_t)(lRet | bSign << 7) * dFactor + dOffest;
+            } else if (pEle->nLen == 2) {
+                dPhyValue = (int16_t)(lRet | bSign << 15) * dFactor + dOffest;
+            } else if (pEle->nLen == 4) {
+                dPhyValue = (int32_t)(lRet | bSign << 31) * dFactor + dOffest;
+            }
+        } else if (pEle->nType == XCP_UNSIGNED) {
+            dPhyValue = (uint32_t)lRet * dFactor + dOffest;
+        } else if (pEle->nType == XCP_FLOAT) {
+            void *temp = &lRet;
+            dPhyValue = (*(float *)(temp)) * dFactor + dOffest;
+        }
+
+        Out_Message Msg;
+        Msg.strName = pEle->strOutName;
+        Msg.dPhyVal = dPhyValue;
+        Msg.strPhyUnit = pEle->strElementUnit;
+        Msg.strPhyFormat = pEle->strElementFormat;
+        if (pEle->bIsSend) {
+            std::lock_guard<std::mutex> lock(g_stu_OutMessage.msg_lock);
+            write_msg_out_map(pEle->strOutName, Msg);
+        }
+        if (pEle->bIsSave) {
+            Msg.strName = pEle->strSaveName;
             std::lock_guard<std::mutex> lock(g_stu_SaveMessage.msg_lock);
             write_msg_save_map(pEle->strSaveName, Msg);
         }
@@ -407,6 +533,8 @@ int write_msg_save_map(const std::string strSaveName, const Out_Message& MsgSave
 
         for (; ItrList != List.end(); ItrList++) {
             if (strSaveName != (*ItrList).strName) continue;
+            // debug
+            // printf("update |||| save_name: %s, val = %lf", MsgSave.strName, MsgSave.dPhyVal);
             // 修改
             *ItrList = MsgSave;
             break;

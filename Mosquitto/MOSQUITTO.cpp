@@ -57,7 +57,6 @@ void GetMQTTTopic(char *pTopic, MQTT_TOPIC topic_type) {
 			break;
 		default:
 			// TODO
-			strncpy(topic, "", strlen(""));
 			break;
 	}
 	

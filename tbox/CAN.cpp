@@ -21,6 +21,7 @@
 #include "DevConfig/PhyChannel.hpp"
 #include "ConvertData/ConvertData.h"
 #include "CCP/CCP_TEST.h"
+#include "XCP/XCP_TEST.h"
 #include "DBC/DBC.h"
 #include "OBD/OBD.h"
 
@@ -55,7 +56,7 @@ int strUpLowTrans(char *dst, char *src, LETTER_CASE flag) {
 	return 0;
 }
 
-int can_setting(int nChan, int nBuardRate) {
+int can_setting(int nChan, int nBuardRate, int nDBuardRate) {
 	// 先关闭 can 通道，防止之前未关闭直接设置波特率发生错误
 	memset((void *)set_shell, 0, sizeof(set_shell));
 	sprintf(set_shell,"ip link set can%c down",(char)(nChan + '0'));
@@ -64,9 +65,12 @@ int can_setting(int nChan, int nBuardRate) {
 	// set bitrate
 	memset((void *)set_shell, 0, sizeof(set_shell));
 	sprintf(set_shell,"ip link set can%c type can bitrate %d", (char)(nChan + '0'), nBuardRate);
-#ifdef CANFD // TODO
-	sprintf(set_shell, " dbitrate %d");
-#endif
+	if (nDBuardRate != 0) {
+		char fd_dbitrate[50] = {0};
+		sprintf(fd_dbitrate, " dbitrate %d fd on", nDBuardRate);
+		strcat(set_shell, fd_dbitrate);
+	}
+
 	system(set_shell);
 
 	memset((void *)set_shell, 0, sizeof(set_shell));
@@ -109,6 +113,10 @@ int socket_can_init(const char *strNameCAN) {
   	addr.can_family = AF_CAN;
     addr.can_ifindex = ifr.ifr_ifindex;
 
+	// 支持 CANFD
+	int fd_on = 1;
+	setsockopt(can_fd, SOL_CAN_RAW, CAN_RAW_FD_FRAMES, &fd_on, sizeof(fd_on));
+
    	if(bind(can_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
 		perror("bind");
 		return -1;
@@ -119,7 +127,7 @@ int socket_can_init(const char *strNameCAN) {
 
 void *can_receive_thread(void *arg) {
 	ssize_t nbytes;
-	struct can_frame canMessage;
+	struct canfd_frame canMessage;
 	memset(&canMessage, 0, sizeof(canMessage));
 
 	canInfo *can_info = (struct canInfo *)arg;
@@ -133,6 +141,7 @@ void *can_receive_thread(void *arg) {
 	std::map<uint32_t, std::vector<int> > mapID_WFD;
 	mapID_Register::iterator ItrReg = g_mapID_Register.find(strChannelName);
 	if (ItrReg == g_mapID_Register.end()) {
+		XLOG_WARN("{} receive thread exited.", strChannelName);
 		pthread_exit(NULL);
 	}
 	// 根据注册信息提取 ID 与 fifo 写端 fd 的对应关系
@@ -155,17 +164,18 @@ void *can_receive_thread(void *arg) {
 		}
 	}
 
-#if 0
+#if 1
 	// 打印该通道 ID 与 w_fd 的对应情况
 	std::map<uint32_t, std::vector<int> >::iterator Itr = mapID_WFD.begin();
     for (; Itr != mapID_WFD.end(); Itr++) {
-        std::cout << strChannelName << " " << Itr->first << std::endl;
+        printf("channelname: %s\n", strChannelName);
+		printf("\tID: %#X  ", Itr->first);
         std::vector<int>::iterator Itrvec = Itr->second.begin();
-        std::cout << "  ";
+        printf("\twrite fd:");
         for (; Itrvec != Itr->second.end(); Itrvec++) {
-            std::cout << *Itrvec << " ";
+            printf("%d  ", *Itrvec);
         }
-        std::cout << std::endl;
+        printf("\n");
     }
 #endif
 
@@ -183,7 +193,7 @@ void *can_receive_thread(void *arg) {
 
 		CANReceive_Buffer RcvTemp;
 		RcvTemp.can_id = canMessage.can_id;
-		RcvTemp.can_dlc = canMessage.can_dlc;
+		RcvTemp.can_dlc = canMessage.len;
 		memcpy(RcvTemp.can_data, canMessage.data, sizeof(canMessage.data));
 
 		// 查找 ID
@@ -269,27 +279,42 @@ void *can_receive_thread(void *arg) {
 
 }
 
-int can_send(int nFd, uint32_t id, uint8_t len, uint8_t *byteArray) {
+int can_send(std::string chanName, int nFd, uint32_t id, uint8_t len, uint8_t *byteArray) {
 	if (nFd < 0) return -1;
 
 	ssize_t nbytes;
-	struct can_frame canMessage;
-	// Prepare packet for write
-	memset(&canMessage, 0, sizeof(canMessage));
-	canMessage.can_id = id;
-	canMessage.can_dlc = len;
-	memcpy(canMessage.data, byteArray, sizeof(uint8_t) * len);
-	
-	nbytes = write(nFd, &canMessage, sizeof(canMessage));
-	if (-1 == nbytes) {
-		// XLOG_DEBUG("Error when write can message.");
-		return -1;
-	}
+	// 普通 CAN
+	// if (g_Channel_MAP[chanName].CAN.stuBuardRate.nCANFDBR == 0) {
+		struct can_frame canMessage;
+		memset(&canMessage, 0, sizeof(canMessage));
+		canMessage.can_id = id;
+		canMessage.can_dlc = len;
+		memcpy(canMessage.data, byteArray, sizeof(uint8_t) * len);
+		
+		nbytes = write(nFd, &canMessage, sizeof(canMessage));
+		if (-1 == nbytes) {
+			XLOG_DEBUG("Error when write can message.");
+			return -1;
+		}
+	// } else {
+	// 	struct canfd_frame canMessage;
+	// 	// Prepare packet for write
+	// 	memset(&canMessage, 0, sizeof(canMessage));
+	// 	canMessage.can_id = id;
+	// 	canMessage.len = len;
+	// 	memcpy(canMessage.data, byteArray, sizeof(uint8_t) * len);
+		
+	// 	nbytes = write(nFd, &canMessage, sizeof(canMessage));
+	// 	if (-1 == nbytes) {
+	// 		XLOG_DEBUG("Error when write can message.");
+	// 		return -1;
+	// 	}
+	// }
 #if 0
 	if (nbytes != -1) {
 		printf("\ncan_send   ");
         printf("ID: %#X\n", canMessage.can_id);
-        for (int i = 0; i < canMessage.can_dlc; i++) {
+        for (int i = 0; i < canMessage.len; i++) {
             printf("%02X ", (canMessage.data[i] & 0xFF));
         }
         printf("\n");
@@ -325,23 +350,16 @@ int Can_Start(void) {
 		if (ItrChan->first == "CAN1") {
 			// 记录使用情况
 			g_stCanChoose.wCan[0] = 1;
-			can_setting(1, ItrChan->second.CAN.stuBuardRate.nCANBR);
+			can_setting(1, ItrChan->second.CAN.stuBuardRate.nCANBR, ItrChan->second.CAN.stuBuardRate.nCANFDBR);
 			int fd = socket_can_init("can1");
 			if (fd < 0) {
 				XLOG_CRITICAL("can1 socket_init ERROR.");
-				return -1;
+				continue;
 			}
 			
 			struct canInfo *info = (struct canInfo *)malloc(sizeof(struct canInfo));
 			info->nChanName = (char *)"CAN1";
 			info->nFd = fd;
-
-			while (getTimestamp(TIME_STAMP::MS_STAMP) % 1000 > 10);
-			while(0 != pthread_create(&threadCan[0], NULL, can_receive_thread, (void *)info) ) {
-				perror("can1 pthread_create");
-			}
-			pthread_setname_np(threadCan[0], "can1 receive");
-			pthread_detach(threadCan[0]);
 
 			// TODO
 			// DBC
@@ -357,7 +375,7 @@ int Can_Start(void) {
 			int nNumCCP = ItrChan->second.CAN.mapCCP.size();
 			if (nNumCCP) {
 				std::vector<CCP_TEST*> vecCCP(nNumCCP);
-				CCP_MAP_Salve_DAQList::iterator Itr = ItrChan->second.CAN.mapCCP.begin();
+				CCP_MAP_Slave_DAQList::iterator Itr = ItrChan->second.CAN.mapCCP.begin();
 				for (int i = 0; i < nNumCCP; i++) {
 					vecCCP[i] = new CCP_TEST(*info, Itr->first);
 					if (0 == vecCCP[i]->Init()) {
@@ -366,26 +384,157 @@ int Can_Start(void) {
 					Itr++;
 				}
 			}
+			// XCP
+			int nNumXCP = ItrChan->second.CAN.mapXCP.size();
+			if (nNumXCP) {
+				std::vector<XCP_TEST*> vecXCP(nNumXCP);
+				XCP_MAP_Slave_DAQList::iterator Itr = ItrChan->second.CAN.mapXCP.begin();
+				for (int i = 0; i < nNumXCP; i++) {
+					vecXCP[i] = new XCP_TEST(*info, Itr->first);
+					if (0 == vecXCP[i]->Init()) {
 
-		} else if (ItrChan->first == "CAN2") {
-			g_stCanChoose.wCan[1] = 1;
-			can_setting(2, ItrChan->second.CAN.stuBuardRate.nCANBR);
-			int fd = socket_can_init("can2");
-			if (fd < 0) {
-				XLOG_CRITICAL("can2 socket_init");
-				return -2;
+					}
+					Itr++;
+				}
 			}
 
-			// struct canInfo info((canInfo){fd, (char *)"CAN2"});
+			while (getTimestamp(TIME_STAMP::MS_STAMP) % 1000 > 10);
+			while(0 != pthread_create(&threadCan[0], NULL, can_receive_thread, (void *)info) ) {
+				perror("can1 pthread_create");
+			}
+			pthread_setname_np(threadCan[0], "can1 receive");
+			pthread_detach(threadCan[0]);
+
+		} else if (ItrChan->first == "CAN2") {
+			// 记录使用情况
+			g_stCanChoose.wCan[1] = 1;
+			can_setting(2, ItrChan->second.CAN.stuBuardRate.nCANBR, ItrChan->second.CAN.stuBuardRate.nCANFDBR);
+			int fd = socket_can_init("can2");
+			if (fd < 0) {
+				XLOG_CRITICAL("can2 socket_init ERROR.");
+				continue;
+			}
+			
 			struct canInfo *info = (struct canInfo *)malloc(sizeof(struct canInfo));
 			info->nChanName = (char *)"CAN2";
 			info->nFd = fd;
 
+			// TODO
+			// DBC
+			if (!ItrChan->second.CAN.mapDBC.empty()) {
+				// std::shared_ptr<DBC> objDBC = std::make_shared<DBC>(info);
+				DBC *objDBC = new DBC(std::move(*info));
+				if(0 == objDBC->Init()) {
+
+				}
+
+			}
+			// CCP
+			int nNumCCP = ItrChan->second.CAN.mapCCP.size();
+			if (nNumCCP) {
+				std::vector<CCP_TEST*> vecCCP(nNumCCP);
+				CCP_MAP_Slave_DAQList::iterator Itr = ItrChan->second.CAN.mapCCP.begin();
+				for (int i = 0; i < nNumCCP; i++) {
+					vecCCP[i] = new CCP_TEST(*info, Itr->first);
+					if (0 == vecCCP[i]->Init()) {
+
+					}
+					Itr++;
+				}
+			}
+			// XCP
+			int nNumXCP = ItrChan->second.CAN.mapXCP.size();
+			if (nNumXCP) {
+				std::vector<XCP_TEST*> vecXCP(nNumXCP);
+				XCP_MAP_Slave_DAQList::iterator Itr = ItrChan->second.CAN.mapXCP.begin();
+				for (int i = 0; i < nNumXCP; i++) {
+					vecXCP[i] = new XCP_TEST(*info, Itr->first);
+					if (0 == vecXCP[i]->Init()) {
+
+					}
+					Itr++;
+				}
+			}
+
+			while (getTimestamp(TIME_STAMP::MS_STAMP) % 1000 > 10);
 			while(0 != pthread_create(&threadCan[1], NULL, can_receive_thread, (void *)info) ) {
 				perror("can2 pthread_create");
 			}
 			pthread_setname_np(threadCan[1], "can2 receive");
 			pthread_detach(threadCan[1]);
+
+		} 
+		else if (ItrChan->first == "CAN3") {
+			// 记录使用情况
+			g_stCanChoose.wCan[2] = 1;
+			can_setting(3, ItrChan->second.CAN.stuBuardRate.nCANBR, ItrChan->second.CAN.stuBuardRate.nCANFDBR);
+			int fd = socket_can_init("can3");
+			if (fd < 0) {
+				XLOG_CRITICAL("can3 socket_init ERROR.");
+				continue;
+			}
+			
+			struct canInfo *info = (struct canInfo *)malloc(sizeof(struct canInfo));
+			info->nChanName = (char *)"CAN3";
+			info->nFd = fd;
+
+			// TODO
+			// DBC
+			if (!ItrChan->second.CAN.mapDBC.empty()) {
+				// std::shared_ptr<DBC> objDBC = std::make_shared<DBC>(info);
+				DBC *objDBC = new DBC(std::move(*info));
+				if(0 == objDBC->Init()) {
+
+				}
+
+			}
+			// CCP
+			int nNumCCP = ItrChan->second.CAN.mapCCP.size();
+			if (nNumCCP) {
+				std::vector<CCP_TEST*> vecCCP(nNumCCP);
+				CCP_MAP_Slave_DAQList::iterator Itr = ItrChan->second.CAN.mapCCP.begin();
+				for (int i = 0; i < nNumCCP; i++) {
+					vecCCP[i] = new CCP_TEST(*info, Itr->first);
+					if (0 == vecCCP[i]->Init()) {
+
+					}
+					Itr++;
+				}
+			}
+			// XCP
+			int nNumXCP = ItrChan->second.CAN.mapXCP.size();
+			if (nNumXCP) {
+				std::vector<XCP_TEST*> vecXCP(nNumXCP);
+				XCP_MAP_Slave_DAQList::iterator Itr = ItrChan->second.CAN.mapXCP.begin();
+				for (int i = 0; i < nNumXCP; i++) {
+					vecXCP[i] = new XCP_TEST(*info, Itr->first);
+					if (0 == vecXCP[i]->Init()) {
+
+					}
+					Itr++;
+				}
+			}
+
+			while (getTimestamp(TIME_STAMP::MS_STAMP) % 1000 > 10);
+			while(0 != pthread_create(&threadCan[2], NULL, can_receive_thread, (void *)info) ) {
+				perror("can3 pthread_create");
+			}
+			pthread_setname_np(threadCan[2], "can3 receive");
+			pthread_detach(threadCan[2]);
+
+		} else if (ItrChan->first == "CAN4") {
+			g_stCanChoose.wCan[3] = 1;
+			can_setting(4, ItrChan->second.CAN.stuBuardRate.nCANBR, ItrChan->second.CAN.stuBuardRate.nCANFDBR);
+			int fd = socket_can_init("can4");
+			if (fd < 0) {
+				XLOG_CRITICAL("can4 socket_init");
+				continue;
+			}
+
+			// struct canInfo info((canInfo){fd, (char *)"CAN2"});
+			struct canInfo *info = (struct canInfo *)malloc(sizeof(struct canInfo));
+			info->nChanName = (char *)"CAN4";
+			info->nFd = fd;
 
 			if (!ItrChan->second.CAN.mapDBC.empty()) {
 				// std::shared_ptr<DBC> objDBC = std::make_shared<DBC>(info);
@@ -400,7 +549,7 @@ int Can_Start(void) {
 			int nNumCCP = ItrChan->second.CAN.mapCCP.size();
 			if (nNumCCP) {
 				std::vector<CCP_TEST*> vecCCP(nNumCCP);
-				CCP_MAP_Salve_DAQList::iterator Itr = ItrChan->second.CAN.mapCCP.begin();
+				CCP_MAP_Slave_DAQList::iterator Itr = ItrChan->second.CAN.mapCCP.begin();
 				for (int i = 0; i < nNumCCP; i++) {
 					vecCCP[i] = new CCP_TEST(*info, Itr->first);
 					
@@ -411,6 +560,27 @@ int Can_Start(void) {
 				}
 			}
 
+			// XCP
+			int nNumXCP = ItrChan->second.CAN.mapXCP.size();
+			if (nNumXCP) {
+				std::vector<XCP_TEST*> vecXCP(nNumXCP);
+				XCP_MAP_Slave_DAQList::iterator Itr = ItrChan->second.CAN.mapXCP.begin();
+				for (int i = 0; i < nNumXCP; i++) {
+					vecXCP[i] = new XCP_TEST(*info, Itr->first);
+					if (0 == vecXCP[i]->Init()) {
+
+					}
+					Itr++;
+				}
+			}
+
+			while (getTimestamp(TIME_STAMP::MS_STAMP) % 1000 > 10);
+			while(0 != pthread_create(&threadCan[3], NULL, can_receive_thread, (void *)info) ) {
+				perror("can4 pthread_create");
+			}
+			pthread_setname_np(threadCan[3], "can4 receive");
+			pthread_detach(threadCan[3]);
+/*
 			if (!ItrChan->second.CAN.mapOBD.empty()) {
 				OBD *objOBD = new OBD(std::move(*info));
 #ifdef SELF_OBD
@@ -421,6 +591,7 @@ int Can_Start(void) {
 
 #endif
 			}
+			*/
 
 		}
 	}
@@ -459,9 +630,11 @@ void Can_Stop(void) {
 			sprintf(set_shell,"ip link set can%c down", (char)(i + 1 + 48));
 			// printf("stopping can%c...\n",(char)(i + 1 + 48));
 			if(0 != system(set_shell) ) {
+				XLOG_ERROR("Stop CAN{0.d} ERROR.", i + 1);
 				continue;
 			}
 //			printf("%d\n",ret);
+			XLOG_INFO("Stop CAN{0.d} ok.", i + 1);
 		}
 	}
 	Can_Enable(DISABLE_CAN);
@@ -489,6 +662,9 @@ const char* protocol_enum_to_string(protocol_type type) {
 		}
 		case protocol_type::PRO_CCP: {
 			return "CCP";
+		}
+		case protocol_type::PRO_XCP: {
+			return "XCP";
 		}
 		case protocol_type::PRO_OBD: {
 			return "OBD";

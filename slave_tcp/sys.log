@@ -1,0 +1,15 @@
+[2022-02-23 21:11:06.765 +08:00] [  info   ] Get info -- get data files info ok.
+[2022-02-23 21:11:31.362 +08:00] [  info   ] Upload -- data file ok.
+[2022-02-23 21:12:03.229 +08:00] [  info   ] Sys info -- get ok.
+[2022-02-23 21:14:38.975 +08:00] [  info   ] Get info -- get data files info ok.
+[2022-02-23 21:16:28.806 +08:00] [  error  ] Download -- open file ERROR. No such file or directory.
+[2022-02-23 21:17:38.901 +08:00] [  error  ] Download -- open file ERROR. No such file or directory.
+[2022-02-23 21:21:00.805 +08:00] [  info   ] Download -- file 1 ok.
+[2022-02-23 21:21:46.461 +08:00] [  info   ] Download -- file 1 ok.
+[2022-02-23 21:21:46.471 +08:00] [  info   ] Download -- file 2 ok.
+[2022-02-23 21:21:46.480 +08:00] [  info   ] Download -- file 3 ok.
+[2022-02-23 21:22:39.214 +08:00] [  info   ] Sys info -- get ok.
+[2022-02-23 21:23:02.128 +08:00] [  info   ] Sys info -- get ok.
+[2022-02-23 21:26:39.563 +08:00] [  info   ] Sys info -- get ok.
+[2022-02-23 21:38:51.182 +08:00] [  info   ] Sys info -- get ok.
+[2022-02-23 21:43:52.948 +08:00] [  info   ] Sys info -- get ok.

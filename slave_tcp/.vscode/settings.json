@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "iostream": "cpp",
+        "string": "cpp",
+        "select.h": "c",
+        "struct_timeval.h": "c"
+    }
+}

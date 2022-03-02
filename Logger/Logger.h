@@ -10,7 +10,7 @@ public:
 	static XLogger* getInstance();
 
 	// void InitXLogger(std::string logger_name, std::string log_file_name, int log_level);
-	void InitXLogger(std::string log_file_name, int log_level = spdlog::level::info, bool is_console_print = false);
+	void InitXLogger(std::string log_dir, std::string log_file_name, int log_level = spdlog::level::info, bool is_console_print = false);
 
 	/*	TRACE 0
 		DEBUG 1

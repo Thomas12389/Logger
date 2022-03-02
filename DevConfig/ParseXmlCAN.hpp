@@ -15,6 +15,5 @@ struct CAN_BuardRate {
 
 
 int parse_xml_can(rapidxml::xml_node<> *pCANNode);
-int parse_xml_can_channel(rapidxml::xml_node<> *pChannelNodes, int nNumChannels);
 
 #endif

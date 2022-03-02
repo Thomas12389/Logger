@@ -39,7 +39,7 @@ private:
 	typedef std::function<int(CCP_DWORD, CCP_BYTE, CCP_ByteVector)> CCP_SendFunc;
 	CCP_SendFunc CANSend;
 protected:
-	const CCP_SlaveData ccp_salve_data_;
+	const CCP_SlaveData ccp_slave_data_;
 public:
 
 private:
@@ -49,28 +49,31 @@ private:
 	inline CCP_CTR GetCTR() {
 		return CTR;
 	}
+	inline void SetCTR(CCP_BYTE ctr) {
+		CTR = ctr;
+	}
 
 	CCP_RESULT CCPMsgSend(CCP_ByteVector CCP_Msg);
 	void CRMRcv(CCP_ByteVector CRM_Msg);
 	void EVENTRcv(CCP_ByteVector EVENT_Msg);
 public:
 	inline CCP_Slave_Addr GetSlaveAddr() {
-		return ccp_salve_data_.nEcuAddress;
+		return ccp_slave_data_.nEcuAddress;
 	}
 	inline CCP_CRO_ID GetCroID() {
-		return ccp_salve_data_.nIdCRO;
+		return ccp_slave_data_.nIdCRO;
 	}
 	inline CCP_DTO_ID GetDtoID() {
-		return ccp_salve_data_.nIdDTO;
+		return ccp_slave_data_.nIdDTO;
 	}
-	inline bool GetSalveOrder() {
-		return ccp_salve_data_.bIntelFormat;
+	inline bool GetSlaveOrder() {
+		return ccp_slave_data_.bIntelFormat;
 	}
-	inline CCP_WORD GetSalveProtocolVersion() {
-		return ccp_salve_data_.nProVersion;
+	inline CCP_WORD GetSlaveProtocolVersion() {
+		return ccp_slave_data_.nProVersion;
 	}
 
-	CROMessage(const CCP_SlaveData ccp_salve_data);
+	CROMessage(const CCP_SlaveData ccp_slave_data);
 	int Init();
 	void SetCCPSendFunc(CCP_SendFunc);
 

@@ -31,6 +31,7 @@ int can_ccp_convert2msg(const char *ChanName, uint32_t nCANID, uint8_t *pMsgData
 #ifdef SELF_OBD
 int can_obd_convert2msg(const char *ChanName, uint32_t nCANID, uint8_t *pMsgData);
 #endif
+int can_xcp_convert2msg(const char *ChanName, uint32_t nCANID, uint8_t *pMsgData);
 
 int write_msg_out_map(const std::string strOutName, const Out_Message& MsgOut);
 int write_msg_save_map(const std::string strSaveName, const Out_Message& MsgSave);

@@ -22,12 +22,31 @@
 #include "tbox/LED_Control.h"
 #include "DevConfig/PhyChannel.hpp"
 
+// #define TEST_LOG_DEBUG
+
 sem_t simSem;
+
+/* 其他文件需要用到，需使用 extern 显式说明， const 默认作用域为本文件 */
+extern const std::string LOG_DIR_NAME = "/home/debian/log/";
+const std::string deal_old_sh = "home/debian/deal_old_files.sh";
+
+/* 配置文件 */
+std::string config_abs_path = "/home/debian/WINDHILLRT/";
+std::vector<std::string> vec_temp_config = {config_abs_path + "temp_hw.xml", config_abs_path + "temp_app.json", config_abs_path + "temp_info.json"};
+std::vector<std::string> vec_config = {config_abs_path + "hw.xml", config_abs_path + "app.json", config_abs_path + "info.json"};
+	// std::string config_temp_hw = config_abs_path + "temp_hw.xml";
+	// std::string config_temp_app = config_abs_path + "temp_app.json";
+	// std::string config_temp_info = config_abs_path + "temp_info.json";
+	// std::string config_hw = config_abs_path + "hw.xml";
+	// std::string config_app = config_abs_path + "app.json";
+	// std::string config_info = config_abs_path + "info.json";
 
 extern std::string STORGE_DIR_NAME;
 extern int runGSMHandlerEvents;
 
 extern Inside_MAP g_Inside_MAP;
+extern Net_Info g_Net_Info;
+extern Connection g_Connection;
 
 void *Net_Active(void *arg)
 {
@@ -44,26 +63,26 @@ void *Net_Active(void *arg)
 
 		iNet_IsActive(&isActive);		//Checks the correct working of the INET module.
 		if (1 == isActive) continue;
+		XLOG_WARN("Network interruption.");
 
-		if (NO_ERROR != GSM_GetRegistration(&wRegistration)) {	// Gets the current network status.
-			XLOG_DEBUG("GSM_GetRegistration ERROR.");
+		retval = GSM_GetRegistration(&wRegistration);
+		if (NO_ERROR != retval) {	// Gets the current network status.
+			XLOG_WARN("GSM_GetRegistration ERROR,{}.", Str_Error(retval));
 			continue;
 		}
-		XLOG_DEBUG("GSM Network status {}.", (int)wRegistration);
+		XLOG_INFO("GSM Network status {0.d}.", (int)wRegistration);
 		if (NO_NETWORK == wRegistration) {
-			XLOG_ERROR("GSM Network interruption.");
+			XLOG_WARN("GSM Network interruption.");
 			GSM_IsActive(&isActive);	//Checks if the GSM module is switched ON and active.
 			if(1 == isActive) {
+				XLOG_INFO("GSM module is still active, stop and reatsrt it.");
 				gsmStop();
 			}
 			while (0 != gsmStart());
-
 		}
 
-		// iNet_IsActive(&isActive);		//Checks the correct working of the INET module.
-		// if (1 == isActive) continue;
-		XLOG_ERROR("Network interruption.");
-		iNetStart();
+		XLOG_INFO("Restart iNet module.");
+		iNetStart(g_Connection.Modem_Conn.userName.c_str(), g_Connection.Modem_Conn.passwd.c_str(), g_Connection.Modem_Conn.APN.c_str());
 	
 	}
 	XLOG_TRACE("Net_Active thread exit.");
@@ -71,19 +90,22 @@ void *Net_Active(void *arg)
 }
 
 static inline int date_to_string(std::string& dataString) {
+
 	time_t t = 0;
 	int count = 0;
     while ((time_t)(-1) == time(&t) ) {
-		XLOG_DEBUG("Get timestamp in seconds ERROR.");
+		// XLOG_DEBUG("Get timestamp in seconds ERROR.");
 		count++;
 		if (count > 3) {
-			XLOG_ERROR("Get timestamp in seconds ERROR.");
+			// XLOG_ERROR("Get timestamp in seconds ERROR.");
 			break;	
 		}
 	}
+
     struct tm *ptm = localtime(&t);
     char strTime[100];
     strftime(strTime, sizeof(strTime), "%Y_%m_%d_%H_%M_%S", ptm);
+
 	dataString = strTime;
 	return 0;
 }
@@ -121,43 +143,58 @@ static int get_storage_info(const char* mountPoint, uint64_t *available_capactit
 	return 0;
 }
 
+int update_config(const char *temp_path, const char *target_path) {
+	if (0 == access(temp_path, F_OK)) {
+		int retval = rename(temp_path, target_path);
+		if (0 != retval) {
+			XLOG_DEBUG("Update {} ERROR, {}.", target_path, strerror(errno));
+			return -1;
+		} else {
+			XLOG_INFO("Update {} success.", target_path);
+		}
+	}
+	return 0;
+}
+
 int main()
 {
 	int retval = 0;
     
  	signal(SIGINT, handler_exit);
+	signal(SIGUSR1, handler_exit);
 
 	sem_init(&simSem,0,0);
-
-	// 日志文件初始化
-	std::string strTime;
-	date_to_string(strTime);
-	XLogger::getInstance()->InitXLogger(strTime);
-
-	XLOG_INFO("Device booting...");
 
 	// RTU模块初始化
 	retval = InitRTUModule();
 	if (1 == retval) {
 		DEVICE_STATUS_ERROR();
-		XLOG_CRITICAL("Problem with the system initialization.");
+		// XLOG_CRITICAL("Problem with the system initialization.");
 		return -1;
 	} else if(-1 == retval) {
 		DEVICE_STATUS_ERROR();
-		XLOG_CRITICAL("RTU module initialized ERROR.");
+		// XLOG_CRITICAL("RTU module initialized ERROR.");
 		return -1;
 	} else {
-		XLOG_INFO("RTU module initialized successfully.");
+		// XLOG_INFO("RTU module initialized successfully.");
 	}
 	
 	//IO模块初始化
 	if(0 != (retval = InitIOModule())) {
 		DEVICE_STATUS_ERROR();
-		XLOG_CRITICAL("IO module initialized ERROR.");
+		// XLOG_CRITICAL("IO module initialized ERROR.");
 		return -1;
 	} else {
-		XLOG_INFO("IO module initialized successfully.");
+		// XLOG_INFO("IO module initialized successfully.");
 	}
+
+	// 日志文件初始化
+	std::string strTime;
+	date_to_string(strTime);
+	std::string name = "log_" + strTime + ".log";
+	XLogger::getInstance()->InitXLogger(LOG_DIR_NAME, name);
+
+	XLOG_INFO("Device booting...");
 
 	// 确保电源指示灯正常亮起
 	do {
@@ -205,9 +242,17 @@ int main()
 		XLOG_INFO("Power management initialized successfully.");
 	}
 
+	/* 更新配置文件 */
+	for (uint8_t idx = 0; idx < vec_config.size(); idx++) {
+		retval = update_config(vec_temp_config[idx].c_str(), vec_config[idx].c_str());
+		if (0 != retval) {
+			DEVICE_STATUS_ERROR();
+			XLOG_CRITICAL("Update configuration ERROR.");
+			return -1;
+		}
+	}
 	/* parse configuration */
-	if (0 != parse_configuration("/home/debian/WINDHILLRT/hw.xml", strTime) || 
-		0 != load_all_json("/home/debian/WINDHILLRT")) {
+	if (0 != parse_configuration("/home/debian/WINDHILLRT/hw.xml", strTime) ) {
 		DEVICE_STATUS_ERROR();
 		XLOG_CRITICAL("Parse configuration file ERROR.");
 		return -1;
@@ -229,7 +274,7 @@ int main()
 	retval = get_storage_info(STORGE_DIR_NAME.c_str(), &availableSpace, &totalSpace);
 	if (0 == retval) {
 		XLOG_INFO("Free measurement space: {} / {} KB.", availableSpace, totalSpace);
-		float avail = 1.0 - 1.0 * availableSpace / totalSpace;
+		float avail = 1.0 * availableSpace / totalSpace;
 		if ( avail < 0.05) {
 			XLOG_WARN("Small storage space available.");
 			// 报警
@@ -242,6 +287,12 @@ int main()
 	} else {
 		XLOG_WARN("Get measurement space failed.");
 	}
+
+	// 处理旧文件(数据文件)
+	if (0 == access(deal_old_sh.c_str(), X_OK)) {
+		XLOG_DEBUG("Deal old files.");
+		system(deal_old_sh.c_str());
+    }
 
 	/* GPS */
 	if (g_Inside_MAP.count("GPS") && g_Inside_MAP["GPS"].isEnable) {
@@ -279,8 +330,9 @@ int main()
 	save_init();
 
 	// TODO: 增加网络通信方式的配置文件
-	COMMUNICATION_MODE com_mode = COMMUNICATION_MODE::Modem;
-	if (com_mode == COMMUNICATION_MODE::Modem) {
+	// COMMUNICATION_MODE com_mode = COMMUNICATION_MODE::Modem;
+	// if (com_mode == COMMUNICATION_MODE::Modem) {
+	if (true == g_Connection.Modem_Conn.bActive) {
 		XLOG_INFO("Waiting for GSM Initialization and Internet session(about 40s)...");
 		
 		// /* GSM */	
@@ -292,40 +344,121 @@ int main()
 		}
 		
 		// /* iNet */
-		iNetStart();
+		iNetStart(g_Connection.Modem_Conn.userName.c_str(), g_Connection.Modem_Conn.passwd.c_str(), g_Connection.Modem_Conn.APN.c_str());
 	}
 
-	/* sync time */
-	SyncTime();
+	if (g_Connection.nWLAN) {
+		system("/opt/TFM_scripts/WLAN_stop.sh");
+		char start_WLAN[1000] = {0};
+		sprintf(start_WLAN, "/opt/TFM_scripts/WLAN_start.sh %s %s", g_Connection.pWLAN_CONN->SSID.c_str(), g_Connection.pWLAN_CONN->passwd.c_str());
+
+		// 多路 WLAN
+/* 		sprintf(start_WLAN, "/opt/TFM_scripts/WLAN_start.sh %d ", g_Connection.nWLAN);
+
+		for (int idx_WLAN = 0; idx_WLAN < g_Connection.nWLAN; idx_WLAN++) {
+			std::strncat(start_WLAN, g_Connection.pWLAN_CONN->SSID.c_str(), g_Connection.pWLAN_CONN->SSID.length());
+			std::strncat(start_WLAN, " ", std::strlen(" "));
+			std::strncat(start_WLAN, g_Connection.pWLAN_CONN->passwd.c_str(), g_Connection.pWLAN_CONN->passwd.length());
+			std::strncat(start_WLAN, " ", std::strlen(" "));
+		} */
+
+		system(start_WLAN);
+	}
 
 	/* mosquitto */
-	do {
-	    if (-1 == Mosquitto_Init()) {
-			XLOG_DEBUG("Mosquitto Init ERROR.");
-			XLOG_WARN("Can't upload data to the server in real time.");
-			break;
-		}
-	    sleep(10); // 减少重连次数
-		Mosquitto_Loop_Start();/*  */
-	    if(0 != Mosquitto_Connect()) {
-			XLOG_WARN("Can't upload data to the server in real time.");
-		    break;
- 	    }	
-	    
-	} while(0);
+	if (g_Net_Info.mqtt_server.bIsActive == true) {
+
+		do {
+			// 读取 json 配置文件
+			if (0 != load_all_json("/home/debian/WINDHILLRT") ) {
+				XLOG_DEBUG("JSON ERROR.");
+				break;
+			}
+			// MQTT 初始化
+			if (-1 == Mosquitto_Init()) {
+				XLOG_DEBUG("Mosquitto Init ERROR.");
+				XLOG_WARN("Can't upload data to the server in real time.");
+				break;
+			}
+			sleep(10); // 减少重连次数
+			Mosquitto_Loop_Start();/*  */
+			if(0 != Mosquitto_Connect()) {
+				XLOG_WARN("Can't upload data to the server in real time.");
+				break;
+			}	
+			
+		} while(0);
+	}
 
 	// 设备指示灯 -- 正常
 	DEVICE_STATUS_NORMAL();
 
+	if (true == g_Connection.Modem_Conn.bActive) {
 	/* reconnect thread */
-	pthread_t network_detection_id;
-	pthread_create(&network_detection_id, NULL, Net_Active, NULL);
-	pthread_setname_np(network_detection_id, "net detection");
-	// pthread_join(network_detection_id, NULL);
-	pthread_detach(network_detection_id);
-	
-	while(1) {
-		sleep(1000);
+		pthread_t network_detection_id;
+		pthread_create(&network_detection_id, NULL, Net_Active, NULL);
+		pthread_setname_np(network_detection_id, "net detection");
+		// pthread_join(network_detection_id, NULL);
+		pthread_detach(network_detection_id);
 	}
+
+#if 1
+	// 创建 fifo，接收控制指令
+	#define FIFO_REQ_PATH "/tmp/LoggerRequest"
+	#define FIFO_RSP_PATH "/tmp/LoggerResponse"
+	int ret = 0, r_fd = -1, w_fd = -1;
+	ret = mkfifo(FIFO_REQ_PATH, 0666);
+	if (ret < 0 && errno != EEXIST) {
+        perror("mkfifo");
+		// 日志
+        return -1;
+    }
+	r_fd = open(FIFO_REQ_PATH, O_RDONLY);
+	if (-1 == r_fd) {
+        perror("open");
+		// 日志
+        return -1;
+    }
+/* 	ret = mkfifo(FIFO_RSP_PATH, 0666);
+	if (ret < 0 && errno != EEXIST) {
+        perror("mkfifo");
+		// 日志
+        return -1;
+    }
+	w_fd = open(FIFO_REQ_PATH, O_WRONLY);
+	if (-1 == w_fd) {
+        perror("open");
+		// 日志
+        return -1;
+    } */
+
+	typedef struct REQUEST_MSG {
+		uint16_t m_act;
+	} Req_Msg;
+
+	typedef struct RESPONSE_MSG {
+		uint16_t m_rsp;
+	} Rsp_Msg;
+
+	ssize_t read_bytes;
+	while(1) {
+		// sleep(1000);
+		Req_Msg r_buf = {0};
+		read_bytes = read(r_fd, &r_buf, sizeof(r_buf));
+		if (read_bytes < 0) {
+            perror("read");
+            continue;
+        }
+		uint16_t act = r_buf.m_act;
+		if (0x0002 == act) {
+			close(r_fd);
+			raise(SIGUSR1);
+		}
+	}
+#else
+	while (1) {
+		sleep(10);
+	}
+#endif
 	return 0;
 }
