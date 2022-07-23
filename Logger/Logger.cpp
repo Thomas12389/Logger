@@ -25,14 +25,14 @@ void XLogger::EndXLogger() {
 }
 
 void XLogger::InitXLogger(std::string log_dir, std::string log_file_name, int log_level, bool is_console_print) {
-	if (is_console_print) {
-		console = true;
-	}
-	
 	// log path
 	const std::string log_path = log_dir + log_file_name;
-	// 输出重定向到文件, for debug
-	// freopen(log_path.c_str(), "a+", stdout);
+
+	if (is_console_print) {
+		console = true;
+		// 输出重定向到 stdout, for debug
+		freopen(log_path.c_str(), "a+", stdout);
+	}
 
 	try {
 		m_logger = spdlog::create_async<spdlog::sinks::rotating_file_sink_mt>(log_file_name, log_path, 5 * 1024 * 1024, 3); // multi part log files, with every part 5M, max 3 files
